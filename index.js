@@ -1,69 +1,69 @@
 /**
- * 
+ *
  * The Bipio Pod Bridge.  Provides basic system resources, auth helpers,
  * setup, invoke and data sources for actions within the pod.
- * 
+ *
  * @author Michael Pearson <michael@cloudspark.com.au>
  * Copyright (c) 2010-2013 CloudSpark pty ltd http://www.cloudspark.com.au
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *  
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * A Bipio Commercial OEM License may be obtained via enquiries@cloudspark.com.au
  */
 var passport = require('passport'),
     request = require('request'),
     util = require('util'),
-    fs = require('fs');
+    fs = require('fs'),
+    extend = require('extend');
 
 // constructor
 function Pod(metadata) {
     this._name = metadata.name || 'Anonymous Pod';
     this._description = metadata.description;
     this._description_long = metadata.description_long;
-    this._authType = metadata.authType || 'none';    
+    this._authType = metadata.authType || 'none';
     this._config = metadata.config || null;
     this._dataSources = metadata.dataSources || [];
-}
-
-function Action() {   
-}
-
-Action.prototype.invoke = function(imports, channel, sysImports, contentParts, next) {
-    throw new Error('Actions Must Implement invoke(imports, channel, sysImports, contentParts, next)');
 }
 
 Pod.prototype = {
     _oAuth : null,
     _sysImports: null,
 
-    _schemas: [], // import configs and schema, keyed to channel action
+    _schemas: {}, // import configs and schema, keyed to channel action
+
     _importContainer: {},
 
     _dataSources : [],
     _dao : null,
     _config : null,
     _sysConfig : {},
-    
+
+    _actionProtos : [],
     actions : {},
     models : {},
 
     $resource : {},
 
+    getDataSourceName : function(dsName) {
+        return 'pod_' + this._name + '_' + dsName;
+    },
+
     /**
      * make system resources available to the pod. Invoked by the Pod registrar
      * in the Channels model when bootstrapping.
-     * 
+     *
      * @param dao {Object} DAO.
      * @param config {Object} Pod Config
      * @param sysConfig {Object} System Config
@@ -71,27 +71,32 @@ Pod.prototype = {
      */
     init : function(dao, config, sysConfig) {
         var dsi = this._dataSources.length,
-            self = this;
+            self = this, dataSource, model;
 
         if (!this._dao) {
             this._dao = dao;
         }
 
         for (var i = 0; i < dsi; i++) {
-            
-             //require('../channel_pod_email_verify').EmailVerify
-            
-            this._dao.registerModel('../models/' + this._dataSources[i]);
+            dataSource = this._dataSources[i];
+            // namespace the model
+            dataSource.entityName = this.getDataSourceName(dataSource.entityName);
+
+            extend(true, dataSource, Object.create(dao.getModelPrototype()));
+
+            this._dao.registerModel(dataSource);
         }
 
         // create an imports container
+        /*
         for (var action in this._schemas) {
             this._importContainer[this._schemas[action]] = {};
             for ( var attribute in this._schemas[action]) {
                 this._importContainer[this._schemas[action]][attribute] = ''
             }
         }
-        
+        */
+
         if (config) {
             this.setConfig(config);
         }
@@ -102,22 +107,58 @@ Pod.prototype = {
         if (this._authType === 'oAuth') {
             var passportStrategy = 'passport-' + this._name;
             this._oAuthRegisterStrategy(
-                require(passportStrategy).Strategy, 
+                require(passportStrategy).Strategy,
                 self._config.oauth.auth,
                 // oAuth permission list
                 self._config.oauth.scopes || []
             );
         }
-        
-        
+
+
         // create resources for Actions
         this.$resource.dao = dao;
-        this.$resource.log = this.log;        
+        this.$resource.log = this.log;
+        this.$resource.getDataSourceName = function(dsName) {
+            return 'pod_' + self._name + '_' + dsName;
+        };
+
+        // bind actions
+        var action;
+        for (i = 0; i < this._actionProtos.length; i++) {
+            action = new this._actionProtos[i](this._config);
+            action.$resource = this.$resource;
+            this.actions[action.name] = action;
+            this._schemas[action.name] = this.buildSchema(action);
+        }
+    },
+
+    // normalizes the schema for an action
+    buildSchema : function(action) {
+        var actionSchema = action.getSchema();
+        return {
+            'description' : action.description,
+            'description_long' : action.description_long,
+            'auth_required' : action.auth_required,
+            'trigger' : action.trigger,
+            'singleton' : action.singleton,
+            'config' : actionSchema.config || {
+                properties : {},
+                definitions : {}
+            },
+            'renderers' : actionSchema.renderers || {},
+            'defaults' : actionSchema.defaults || {},
+            'exports' : actionSchema.exports || {
+                properties : {}
+            },
+            'imports' : actionSchema.imports || {
+                properties : {}
+            }
+        };
     },
 
     /**
      * Sets the configuration for this pod
-     * 
+     *
      * @param config {Object} configuration structure for this Pod
      */
     setConfig: function(config) {
@@ -127,17 +168,16 @@ Pod.prototype = {
     /**
      * Logs a message
      */
-    log : function(message, channel, sysImports, level) {
+    log : function(message, channel, level) {
         app.logmessage(
-            this._name 
-                + '.' 
-                + channel.action 
-                + ':' 
-                + sysImports.owner_id 
-                + ':' 
-                + message, 
-            level);
+            channel.action
+            + ':'
+            + channel.owner_id
+            + ':'
+            + message,
+        level);
     },
+
 
     // ------------------------------ 3RD PARTY AUTHENTICATION HELPERS
 
@@ -233,7 +273,7 @@ Pod.prototype = {
                 passport[authMethod](podName, function(err, user) {
                     // @todo - decouple from site.
                     if (err) {
-                        app.logmessage(err, 'error');                        
+                        app.logmessage(err, 'error');
                         res.redirect(CFG.website_public + '/emitter/oauthcb?status=denied&provider=' + podName);
 
                     } else if (!user && req.query.error_reason && req.query.error_reason == 'user_denied') {
@@ -602,11 +642,7 @@ Pod.prototype = {
      * @param ActionProto {Object} Action Object
      */
     add : function(ActionProto) {
-        util.inherits(ActionProto, Action);
-        var action = new ActionProto(this._config);
-            
-        action.$resource = this.$resource;
-        this.actions[action.name] = action;
+       this._actionProtos.push(ActionProto);
     },
 
     /*
@@ -618,7 +654,7 @@ Pod.prototype = {
      *
      * @param action {String} Configured pod Action
      * @param channel {Channel} initialized channel
-     * @param accountInfo {Object} AccountInfo Structure for Authenticated Account 
+     * @param accountInfo {Object} AccountInfo Structure for Authenticated Account
      * @paran next {Function} callback
      */
     setup : function(action, channel, accountInfo, next) {
@@ -647,11 +683,11 @@ Pod.prototype = {
      * RPC's are direct calls into a pod, so its up to the pod
      * to properly authenticate data etc.
      */
-    rpc : function(action, method, options, req, res, channel) {
-        if (undefined != this.rpc[action]) {
-            this.rpc[action](method, options, req, res, channel);
+    rpc : function(action, method, options, req, res, channel) {        
+        if (this.actions[action].rpc) {
+            this.actions[action].rpc(method, options, req, res, channel);;
         } else {
-            res.send(404);
+            res(404);
         }
     },
 
@@ -695,7 +731,7 @@ Pod.prototype = {
     /**
      * Renders self
      * @todo - stub
-     */    
+     */
     render: function(action, channel, accountInfo, cb) {
         if (this.canRender(action)) {
 

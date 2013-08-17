@@ -4,6 +4,11 @@ bip-pod
 Bipio's Pod bridge.  Provides the entry point and resources for Pods to do work.
 
 
+## Installation
+
+    npm install bip-pod
+
+
 ## License
 
 BipIO is free for non-commercial use.
