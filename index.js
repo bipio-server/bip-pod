@@ -35,27 +35,27 @@ function Pod(metadata) {
     this._authType = metadata.authType || 'none';
     this._config = metadata.config || null;
     this._dataSources = metadata.dataSources || [];
+    
+    this._oAuth = null;
+        // @todo oAuthScope should direclty key into which actions are available
+    // for the pod so that we have a clean upgrade path for users. ie: they
+    // reauthenticate and we upgrade the perms + install new channels
+    this._oAuthScope = [];
+    this._oAuthRegistered = false;
+    this._sysImports = null;
+    this._schemas = {}; // import configs and schema; keyed to channel action
+    this._importContainer = {};
+    this._dataSources = [];
+    this._dao = null;
+    this._config = null;
+    this._sysConfig = {};
+    this._actionProtos = [];
+    this.actions = {};
+    this.models = {};
+    this.$resource = {};
 }
 
 Pod.prototype = {
-    _oAuth : null,
-    _sysImports: null,
-
-    _schemas: {}, // import configs and schema, keyed to channel action
-
-    _importContainer: {},
-
-    _dataSources : [],
-    _dao : null,
-    _config : null,
-    _sysConfig : {},
-
-    _actionProtos : [],
-    actions : {},
-    models : {},
-
-    $resource : {},
-
     getDataSourceName : function(dsName) {
         return 'pod_' + this._name + '_' + dsName;
     },
@@ -121,12 +121,17 @@ Pod.prototype = {
         this.$resource.getDataSourceName = function(dsName) {
             return 'pod_' + self._name + '_' + dsName;
         };
+        
+        this.$resource.getDataDir = this.getDataDir;
+        this.$resource._httpGet = this._httpGet;
+        this.$resource._httpStreamToFile = this._httpStreamToFile;
 
         // bind actions
         var action;
         for (i = 0; i < this._actionProtos.length; i++) {
             action = new this._actionProtos[i](this._config);
             action.$resource = this.$resource;
+            action.pod = this;
             this.actions[action.name] = action;
             this._schemas[action.name] = this.buildSchema(action);
         }
@@ -181,12 +186,6 @@ Pod.prototype = {
 
     // ------------------------------ 3RD PARTY AUTHENTICATION HELPERS
 
-    // @todo oAuthScope should direclty key into which actions are available
-    // for the pod so that we have a clean upgrade path for users. ie: they
-    // reauthenticate and we upgrade the perms + install new channels
-    _oAuthScope : [],
-
-    _oAuthRegistered : false,
 
     issuerTokenRPC : function(podName, method, req, res) {
         var ok = false;
@@ -631,8 +630,6 @@ Pod.prototype = {
 
     },
 
-
-
     // ----------------------------------------------- CHANNEL BRIDGE INTERFACE
 
     /**
@@ -801,6 +798,7 @@ Pod.prototype = {
         } else if (this._authType == 'issuer_token') {
             schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this._name + '/set?to=';
         }
+
 
         for (action in this._schemas) {
             if (!this._schemas[action].admin) {
