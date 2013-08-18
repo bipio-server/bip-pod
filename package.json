@@ -1,6 +1,6 @@
 {
   "name": "bip-pod",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Bipio's Pod bridge and testing spindle",
   "keywords": [
     "bip",
@@ -9,10 +9,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/cloudspark/bip-pod.git"
+    "url": "git://github.com/bipio-server/bip-pod.git"
   },
   "bugs": {
-    "url": "http://github.com/cloudspark/bip-pod/issues"
+    "url": "http://github.com/bipio-server/bip-pod/issues"
   },  
   "licenses": [
     {
@@ -29,6 +29,6 @@
   "engines": {
     "node": ">= 0.10.0"
   },  
-  "_id": "bip-pod@0.0.1",
-  "_from": "bip-pod@>=0.0.0"
+  "_id": "bip-pod@0.0.2",
+  "_from": "bip-pod@>=0.0.1"
 }
