@@ -104,11 +104,11 @@ Pod.prototype = {
         this._sysConfig = sysConfig;
 
         // register the oauth strategy
-        if (this._authType === 'oAuth') {
+        if (this._authType === 'oauth') {
             var passportStrategy = 'passport-' + this._name;
             this._oAuthRegisterStrategy(
                 require(passportStrategy).Strategy,
-                self._config.oauth.auth,
+                self._config.oauth,
                 // oAuth permission list
                 self._config.oauth.scopes || []
             );
@@ -258,6 +258,8 @@ Pod.prototype = {
         var ok = false,
             authMethod = (this._oAuthMethod) ? this._oAuthMethod : 'authorize',
             self = this;
+
+console.log(this._oAuthRegistered);
 
         if (false !== this._oAuthRegistered) {
             // invoke the passport oauth handler
@@ -811,7 +813,6 @@ Pod.prototype = {
         } else if (this._authType == 'issuer_token') {
             schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this._name + '/set?to=';
         }
-
 
         for (action in this._schemas) {
             if (!this._schemas[action].admin) {
