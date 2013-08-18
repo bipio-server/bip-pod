@@ -674,7 +674,7 @@ Pod.prototype = {
      * @paran next {Function} callback
      */
     invoke: function(action, channel, imports, sysImports, contentParts, next) {
-        this.actions[action](imports, channel, sysImports, contentParts, next);
+        this.actions[action].invoke(imports, channel, sysImports, contentParts, next);
     },
 
     /**
