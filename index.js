@@ -146,6 +146,7 @@ Pod.prototype = {
             'auth_required' : action.auth_required,
             'trigger' : action.trigger,
             'singleton' : action.singleton,
+            'auto' : action.auto,
             'config' : actionSchema.config || {
                 properties : {},
                 definitions : {}
@@ -746,36 +747,48 @@ Pod.prototype = {
             channelTemplate,
             s,
             i = 0,
-            keyLen = Object.keys(this._schemas).length, errors = false
+            keyLen = Object.keys(this._schemas).length, errors = false,
+            singles = false;
 
+        // check any singles exist
         for (key in this._schemas) {
-            i++;
-            s = this._schemas[key];
-            if (s.singleton) {
-                channelTemplate = {
-                    name : s.description,
-                    action : this._name + '.' + key,
-                    config : {}, // singletons don't have config
-                    note : s.description_long + ' (Automatically Installed)'
-                };
-
-                // don't care about catching duplicates right now
-                model = dao.modelFactory('channel', channelTemplate, { user : accountInfo } );
-                dao.create(model, function(err, result) {
-                    if (err) {
-                        app.logmessage(err, 'error');
-                        errors = true;
-                    }
-
-                    if (i === keyLen && next) {
-                        // errors are already be logged
-                        next(errors, (errors ? 'There were errors' : '') );
-                    }
-
-                }, { user : accountInfo });
-
-
+            if (this._schemas[key].singleton || this._schemas[key].auto) {
+                singles = true;
             }
+        }
+
+        if (keyLen && singles) {
+            for (key in this._schemas) {
+                i++;
+                s = this._schemas[key];
+                if (s.singleton || s.auto) {
+                    channelTemplate = {
+                        name : s.description,
+                        action : this._name + '.' + key,
+                        config : {}, // singletons don't have config
+                        note : (s.description_long || s.description) + ' (Automatically Installed)'
+                    };
+
+                    // don't care about catching duplicates right now
+                    model = dao.modelFactory('channel', channelTemplate, { user : accountInfo } );
+                    dao.create(model, function(err, result) {
+                        if (err) {
+                            app.logmessage(err, 'error');
+                            errors = true;
+                        }
+
+                        if (i === keyLen && next) {
+                            // errors are already be logged
+                            next(errors, (errors ? 'There were errors' : '') );
+                        }
+
+                    }, { user : accountInfo });
+
+
+                }
+            }
+        } else {
+            next(true, 'No Singletons to Install');
         }
     },
 
