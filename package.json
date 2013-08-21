@@ -1,6 +1,6 @@
 {
   "name": "bip-pod",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Bipio's Pod bridge and testing spindle",
   "keywords": [
     "bip",
@@ -29,6 +29,6 @@
   "engines": {
     "node": ">= 0.10.0"
   },  
-  "_id": "bip-pod@0.0.2",
-  "_from": "bip-pod@>=0.0.1"
+  "_id": "bip-pod@0.0.3",
+  "_from": "bip-pod@>=0.0.2"
 }
