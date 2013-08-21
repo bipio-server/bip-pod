@@ -35,7 +35,6 @@ function Pod(metadata) {
     this._authType = metadata.authType || 'none';
     this._config = metadata.config || null;
     this._dataSources = metadata.dataSources || [];
-    
     this._oAuth = null;
         // @todo oAuthScope should direclty key into which actions are available
     // for the pod so that we have a clean upgrade path for users. ie: they
@@ -45,14 +44,14 @@ function Pod(metadata) {
     this._sysImports = null;
     this._schemas = {}; // import configs and schema; keyed to channel action
     this._importContainer = {};
-    this._dataSources = [];
+
     this._dao = null;
-    this._config = null;
     this._sysConfig = {};
     this._actionProtos = [];
+    
     this.actions = {};
     this.models = {};
-    this.$resource = {};
+    this.$resource = {};    
 }
 
 Pod.prototype = {
