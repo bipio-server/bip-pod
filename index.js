@@ -749,6 +749,7 @@ console.log(this._oAuthRegistered);
             s,
             i = 0,
             keyLen = Object.keys(this._schemas).length, errors = false,
+            installedKeys = [],
             singles = false;
 
         // check any singles exist
@@ -758,11 +759,12 @@ console.log(this._oAuthRegistered);
             }
         }
 
-        if (keyLen && singles) {
+        if (keyLen && singles) {            
             for (key in this._schemas) {
-                i++;
                 s = this._schemas[key];
                 if (s.singleton || s.auto) {
+                    
+                    
                     channelTemplate = {
                         name : s.description,
                         action : this._name + '.' + key,
@@ -773,14 +775,17 @@ console.log(this._oAuthRegistered);
                     // don't care about catching duplicates right now
                     model = dao.modelFactory('channel', channelTemplate, { user : accountInfo } );
                     dao.create(model, function(err, result) {
+                        i++;
                         if (err) {
                             app.logmessage(err, 'error');
                             errors = true;
+                        } else {
+                            installedKeys.push(channelTemplate.action);
                         }
-
-                        if (i === keyLen && next) {
+                        
+                        if (i === (keyLen - 1) && next) {
                             // errors are already be logged
-                            next(errors, (errors ? 'There were errors' : '') );
+                            next(errors, (errors ? 'There were errors' : installedKeys.toString()) );
                         }
 
                     }, { user : accountInfo });
