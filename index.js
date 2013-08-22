@@ -748,7 +748,8 @@ console.log(this._oAuthRegistered);
             channelTemplate,
             s,
             i = 0,
-            keyLen = Object.keys(this._schemas).length, errors = false,
+            keyLen,
+            errors = false,
             installedKeys = [],
             singles = false;
 
@@ -756,6 +757,7 @@ console.log(this._oAuthRegistered);
         for (key in this._schemas) {
             if (this._schemas[key].singleton || this._schemas[key].auto) {
                 singles = true;
+                keyLen++;
             }
         }
 
