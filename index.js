@@ -41,6 +41,7 @@ function Pod(metadata) {
     // reauthenticate and we upgrade the perms + install new channels
     this._oAuthScope = [];
     this._oAuthRegistered = false;
+    this._passportStrategy = metadata.passportStrategy;
     this._sysImports = null;
     this._schemas = {}; // import configs and schema; keyed to channel action
     this._importContainer = {};
@@ -51,7 +52,7 @@ function Pod(metadata) {
     
     this.actions = {};
     this.models = {};
-    this.$resource = {};    
+    this.$resource = {};
 }
 
 Pod.prototype = {
@@ -104,9 +105,10 @@ Pod.prototype = {
 
         // register the oauth strategy
         if (this._authType === 'oauth') {
-            var passportStrategy = 'passport-' + this._name;
+            //var passportStrategy = 'passport-' + this._name;
             this._oAuthRegisterStrategy(
-                require(passportStrategy).Strategy,
+                //require(passportStrategy).Strategy,
+                this._passportStrategy,
                 self._config.oauth,
                 // oAuth permission list
                 self._config.oauth.scopes || []
@@ -256,21 +258,21 @@ Pod.prototype = {
     oAuthRPC: function(podName, method, req, res) {
         var ok = false,
             authMethod = (this._oAuthMethod) ? this._oAuthMethod : 'authorize',
-            self = this;
-
-console.log(this._oAuthRegistered);
+            self = this,
+            accountInfo = req.remoteUser,
+            accountId = accountInfo.getId();
 
         if (false !== this._oAuthRegistered) {
             // invoke the passport oauth handler
             if (method == 'auth') {
-                app.logmessage('[' + req.user.id + '] OAUTH ' + podName + ' AUTH REQUEST' );
+                app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
                 passport[authMethod](podName, {
                     scope : this._oAuthScope
                 })(req, res);
                 ok = true;
 
             } else if (method == 'cb') {
-                app.logmessage('[' + req.user.id + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
+                app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
                 passport[authMethod](podName, function(err, user) {
                     // @todo - decouple from site.
                     if (err) {
@@ -278,13 +280,13 @@ console.log(this._oAuthRegistered);
                         res.redirect(CFG.website_public + '/emitter/oauthcb?status=denied&provider=' + podName);
 
                     } else if (!user && req.query.error_reason && req.query.error_reason == 'user_denied') {
-                        app.logmessage('[' + req.user.id + '] OAUTH ' + podName + ' CANCELLED' );
+                        app.logmessage('[' + accountId + '] OAUTH ' + podName + ' CANCELLED' );
                         res.redirect(CFG.website_public + '/emitter/oauthcb?status=denied&provider=' + podName);
 
                     } else {
-                        app.logmessage('[' + req.user.id + '] OAUTH ' + podName + ' AUTHORIZED' );
+                        app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTHORIZED' );
                         // install singletons
-                        self.autoInstall(req.user);
+                        self.autoInstall(accountInfo);
                         res.redirect(CFG.website_public + '/emitter/oauthcb?status=accepted&provider=' + podName);
                     }
                 })(req, res, function(err) {
@@ -293,7 +295,7 @@ console.log(this._oAuthRegistered);
                 });
                 ok = true;
             } else if (method == 'deauth') {
-                this.oAuthUnbind(podName, req.user.id, function(err) {
+                this.oAuthUnbind(podName, accountId, function(err) {
                     if (!err) {
                         res.send(200);
                     } else {
@@ -406,16 +408,18 @@ console.log(this._oAuthRegistered);
     },
 
     oAuthBinder: function(req, accessToken, refreshToken, profile, done) {
-        var self = this;
-
+        var self = this,
+            accountInfo = req.remoteUser,
+            accountId = accountInfo.getId();
+            
         // upsert oAuth document
         var filter = {
-            owner_id : req.remoteUser.id,
+            owner_id : accountId,
             oauth_provider : this._name
         };
 
         var struct = {
-            owner_id : req.remoteUser.id,
+            owner_id : accountId,
             password : accessToken,
             type : 'oauth',
             oauth_provider : this._name,
@@ -433,7 +437,7 @@ console.log(this._oAuthRegistered);
                 done( err, req.remoteUser );
             } else {
                 self._dao.create(model, function(err, result) {
-                    next( err, req.remoteUser );
+                    next( err, accountInfo );
                 });
             }
         });
@@ -660,7 +664,8 @@ console.log(this._oAuthRegistered);
         if (this.actions[action] && this.actions[action].setup) {
             this.actions[action].setup(channel, accountInfo, next);
         } else {
-            next();
+            //next(200);
+            next(false, 'channel', channel, 200);
         }
     },
 
@@ -795,7 +800,7 @@ console.log(this._oAuthRegistered);
 
                 }
             }
-        } else {
+        } else if (next) {
             next(true, 'No Singletons to Install');
         }
     },
