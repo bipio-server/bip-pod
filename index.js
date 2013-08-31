@@ -83,7 +83,6 @@ Pod.prototype = {
             dataSource.entityName = this.getDataSourceName(dataSource.entityName);
 
             extend(true, dataSource, Object.create(dao.getModelPrototype()));
-
             this._dao.registerModel(dataSource);
         }
 
@@ -608,13 +607,13 @@ Pod.prototype = {
 
     // returns the file based data dir for this pod
     getDataDir: function(channel, action) {
-        var dDir = DEFS.DATA_DIR + '/channels/';
+        var dDir = DATA_DIR + '/channels/';
 
         if (undefined != channel.owner_id) {
             dDir += channel.owner_id + '/';
         }
 
-        dDir += this._name + '/' + action.name + '/' + channel.id;
+        dDir += this._name + '/' + action + '/' + channel.id;
 
         return dDir;
     },
@@ -660,7 +659,13 @@ Pod.prototype = {
      * @param accountInfo {Object} AccountInfo Structure for Authenticated Account
      * @paran next {Function} callback
      */
-    setup : function(action, channel, accountInfo, next) {
+    setup : function(action, channel, accountInfo, auth, next) {
+        if (!next && 'function' === typeof auth) {
+            next = auth;
+        } else {
+            accountInfo._setupAuth = auth;
+        }       
+        
         if (this.actions[action] && this.actions[action].setup) {
             this.actions[action].setup(channel, accountInfo, next);
         } else {
@@ -753,7 +758,7 @@ Pod.prototype = {
             channelTemplate,
             s,
             i = 0,
-            keyLen,
+            keyLen = 0,
             errors = false,
             installedKeys = [],
             singles = false;
@@ -790,7 +795,7 @@ Pod.prototype = {
                             installedKeys.push(channelTemplate.action);
                         }
                         
-                        if (i === (keyLen - 1) && next) {
+                        if (i === keyLen && next) {
                             // errors are already be logged
                             next(errors, (errors ? 'There were errors' : installedKeys.toString()) );
                         }
