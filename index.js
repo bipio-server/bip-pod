@@ -104,9 +104,7 @@ Pod.prototype = {
 
         // register the oauth strategy
         if (this._authType === 'oauth') {
-            //var passportStrategy = 'passport-' + this._name;
             this._oAuthRegisterStrategy(
-                //require(passportStrategy).Strategy,
                 this._passportStrategy,
                 self._config.oauth,
                 // oAuth permission list
@@ -193,7 +191,7 @@ Pod.prototype = {
 
         if (this._authType == 'issuer_token') {
             if (method == 'set') {
-                app.logmessage('[' + req.remoteUser.id + '] ISSUER_TOKEN ' + podName + ' SET' );
+                app.logmessage('[' + req.remoteUser.id + '] ISSUER_TOKEN ' + this._name + ' SET' );
                 var setTo = req.query.to;
 
                 var self = this;
@@ -248,6 +246,41 @@ Pod.prototype = {
         return ok;
     },
 
+    oAuthSetAppRPC : function(req, key, secret, done) {
+        var self = this,
+            accountInfo = req.remoteUser,
+            accountId = accountInfo.getId();
+
+        // upsert oAuth document
+        var filter = {
+            owner_id : accountId,
+            oauth_provider : this._name,
+            type : 'oauth_app'
+        };
+        
+        var struct = {
+            owner_id : accountId,            
+            type : 'oauth_app',
+            oauth_provider : this._name,
+            username : key,
+            password : secret
+        };
+
+        var model = this._dao.modelFactory('account_auth', struct);
+
+        // create a dao helper for filter -> model upsert.
+        this._dao.find('account_auth', filter, function(err, result) {
+            var next = done;
+            if (err) {
+                done( err, req.remoteUser );
+            } else {
+                self._dao.create(model, function(err, result) {
+                    next( err, restult, accountInfo );
+                });
+            }
+        });
+    },
+
     /**
      * @param string podName pod name == strategy name
      * @param string method auth rpc method name
@@ -264,11 +297,36 @@ Pod.prototype = {
         if (false !== this._oAuthRegistered) {
             // invoke the passport oauth handler
             if (method == 'auth') {
-                app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
-                passport[authMethod](podName, {
-                    scope : this._oAuthScope
-                })(req, res);
-                ok = true;
+                
+                // if 'setcredentails' is set, then add to the account, it will
+                // become our working credential set
+                if (req.query.setCredentials) {
+                    //this.oAuthSetAppRPC : function(req, key, secret, done) {
+                    // passport maps
+                    // consumerKey, clientID
+                    // consumerSecret, clientSecret
+                    
+                    var key = (req.query.clientID ? req.query.clientID : req.query.consumerKey),
+                        secret = (req.query.clientSecret ? req.query.clientSecret : req.query.consumerSecret);
+                    
+                    this.oAuthSetAppRPC(req, key, secret, function(err, accountInfo) {
+                        if (err) {
+                            app.logmessage(err, 'error');
+                        } else {
+                            app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
+                            passport[authMethod](podName, {
+                                scope : this._oAuthScope
+                            })(req, res);
+                            ok = true;
+                        }
+                    });
+                } else {                
+                    app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
+                    passport[authMethod](podName, {
+                        scope : this._oAuthScope
+                    })(req, res);
+                    ok = true;
+                }
 
             } else if (method == 'cb') {
                 app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
@@ -462,7 +520,7 @@ Pod.prototype = {
                     if (err) {
                         app.logmessage(err, 'error');
                     }
-                    next(true, err);
+                    next(err, result);
                 }
             }
         );
@@ -507,6 +565,10 @@ Pod.prototype = {
         } else {
             return this.repr();
         }
+    },
+
+    getName : function() {
+        return this._name;
     },
 
     getSchema : function(action) {
@@ -692,9 +754,10 @@ Pod.prototype = {
      * RPC's are direct calls into a pod, so its up to the pod
      * to properly authenticate data etc.
      */
-    rpc : function(action, method, options, req, res, channel) {        
+
+    rpc : function(action, method, sysImports, options, channel, req, res) {        
         if (this.actions[action].rpc) {
-            this.actions[action].rpc(method, options, req, res, channel);;
+            this.actions[action].rpc(method, sysImports, options, channel, req, res);
         } else {
             res(404);
         }
@@ -825,7 +888,16 @@ Pod.prototype = {
 
         // attach auth binders
         if (this._authType == 'oauth') {
-            schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' +  this._name + '/auth';
+            schema.auth.scopes = this._config.oauth.scopes || [];
+            schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' +  this._name + '/auth';            
+            schema.auth.authKeys = [];
+
+            for (var k in this._config.oauth) {
+                if (this._config.oauth.hasOwnProperty(k) && /^client/.test(k)) {
+                    schema.auth.authKeys.push(k);                    
+                }
+            }
+            
         } else if (this._authType == 'issuer_token') {
             schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this._name + '/set?to=';
         }
