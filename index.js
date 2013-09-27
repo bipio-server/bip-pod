@@ -173,13 +173,22 @@ Pod.prototype = {
      * Logs a message
      */
     log : function(message, channel, level) {
-        app.logmessage(
-            channel.action
-            + ':'
-            + channel.owner_id
-            + ':'
-            + message,
-        level);
+        if (app.helper.isObject(message)) {
+            app.logmessage(
+                channel.action
+                + ':'
+                + channel.owner_id,
+            level);
+            app.logmessage(message, level);
+        } else {
+            app.logmessage(
+                channel.action
+                + ':'
+                + channel.owner_id
+                + ':'
+                + message,
+            level);
+        }
     },
 
 
@@ -187,25 +196,29 @@ Pod.prototype = {
 
 
     issuerTokenRPC : function(podName, method, req, res) {
-        var ok = false;
+        var ok = false, ownerId;
+        res.contentType(DEFS.CONTENTTYPE_JSON);
 
         if (this._authType == 'issuer_token') {
+            ownerId = req.remoteUser.user.id;
+            
             if (method == 'set') {
-                app.logmessage('[' + req.remoteUser.id + '] ISSUER_TOKEN ' + this._name + ' SET' );
-                var setTo = req.query.to;
+                app.logmessage('[' + ownerId + '] ISSUER_TOKEN ' + this._name + ' SET' );
 
                 var self = this;
 
                 // upsert oAuth document
                 var filter = {
-                    owner_id : req.remoteUser.id,
+                    owner_id : ownerId,
                     type : this._authType
                 };
 
                 var struct = {
-                    owner_id : req.remoteUser.id,
-                    password : setTo,
-                    type : this._authType
+                    owner_id : ownerId,
+                    username : req.query.username,
+                    password : req.query.password,
+                    type : this._authType,
+                    auth_provider : podName
                 };
 
                 var model = this._dao.modelFactory('account_auth', struct);
@@ -215,27 +228,29 @@ Pod.prototype = {
                 this._dao.find('account_auth', filter, function(err, result) {
                     if (err) {
                         app.logmessage(err, 'error');
-                        done( err, req.remoteUser );
+                        res.send(500);
                     } else {
                         // update
+                        console.log(struct);
                         if (result) {
-                            self._dao.update('account_auth', result.id, struct, function(err, result) {
-                                if (!err) {
-                                    res.send(200);
+                            self._dao.update('account_auth', result.id, struct, function(err, result) {       
+                                if (err) {
+                                    app.logmessage(err, 'error');
+                                    res.jsonp(500, {});
+                                } else {
+                                    res.jsonp(200, {});
                                 }
-                            }, {
-                                user : req.remoteUser
-                            } );
-                        // create
+                            }, req.remoteUser);                        
                         } else {
+                            // create   
                             self._dao.create(model, function(err, result) {
                                 if (err) {
                                     app.logmessage(err, 'error');
-                                    res.send(500);
+                                    res.jsonp(500, {});
                                 } else {
-                                    res.send(200);
+                                    res.jsonp(200, {});
                                 }
-                            });
+                            }, req.remoteUser);
                         }
                     }
                 });
@@ -393,7 +408,8 @@ Pod.prototype = {
         var self = this;
         var filter = {
             owner_id : ownerId,
-            type : this._authType
+            type : this._authType,
+            auth_provider : podName
         };
 
         this._dao.find('account_auth', filter, function(err, result) {
@@ -516,6 +532,29 @@ Pod.prototype = {
                 if (!err && result) {
                     authRecord = self._dao.modelFactory('account_auth', result);
                     next(false, authRecord.getPassword(), authRecord.getOAuthRefresh(), authRecord.getOauthProfile());
+                } else {
+                    if (err) {
+                        app.logmessage(err, 'error');
+                    }
+                    next(err, result);
+                }
+            }
+        );
+    },
+
+    authGetIssuerToken : function(owner_id, provider, next) {
+        var self = this;
+        this._dao.find(
+            'account_auth',
+            {
+                'owner_id' : owner_id,
+                'auth_provider' : provider
+            },
+            function(err, result) {
+                var authRecord;
+                if (!err && result) {
+                    authRecord = self._dao.modelFactory('account_auth', result);
+                    next(false, authRecord.getUsername(), authRecord.getPassword());
                 } else {
                     if (err) {
                         app.logmessage(err, 'error');
@@ -899,7 +938,10 @@ Pod.prototype = {
             }
             
         } else if (this._authType == 'issuer_token') {
-            schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this._name + '/set?to=';
+            schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this._name + '/set';
+            if (this._config.authMap) {
+                schema.auth.authMap = this._config.authMap;                
+            }
         }
 
         for (action in this._schemas) {
