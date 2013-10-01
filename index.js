@@ -33,6 +33,7 @@ function Pod(metadata) {
     this._description = metadata.description;
     this._description_long = metadata.description_long;
     this._authType = metadata.authType || 'none';
+    this._authMap = metadata.authMap || null;
     this._config = metadata.config || null;
     this._dataSources = metadata.dataSources || [];
     this._oAuth = null;
@@ -248,6 +249,7 @@ Pod.prototype = {
                                     app.logmessage(err, 'error');
                                     res.jsonp(500, {});
                                 } else {
+                                    self.autoInstall(req.remoteUser);
                                     res.jsonp(200, {});
                                 }
                             }, req.remoteUser);
@@ -259,41 +261,6 @@ Pod.prototype = {
             }
         }
         return ok;
-    },
-
-    oAuthSetAppRPC : function(req, key, secret, done) {
-        var self = this,
-            accountInfo = req.remoteUser,
-            accountId = accountInfo.getId();
-
-        // upsert oAuth document
-        var filter = {
-            owner_id : accountId,
-            oauth_provider : this._name,
-            type : 'oauth_app'
-        };
-        
-        var struct = {
-            owner_id : accountId,            
-            type : 'oauth_app',
-            oauth_provider : this._name,
-            username : key,
-            password : secret
-        };
-
-        var model = this._dao.modelFactory('account_auth', struct);
-
-        // create a dao helper for filter -> model upsert.
-        this._dao.find('account_auth', filter, function(err, result) {
-            var next = done;
-            if (err) {
-                done( err, req.remoteUser );
-            } else {
-                self._dao.create(model, function(err, result) {
-                    next( err, restult, accountInfo );
-                });
-            }
-        });
     },
 
     /**
@@ -311,37 +278,12 @@ Pod.prototype = {
 
         if (false !== this._oAuthRegistered) {
             // invoke the passport oauth handler
-            if (method == 'auth') {
-                
-                // if 'setcredentails' is set, then add to the account, it will
-                // become our working credential set
-                if (req.query.setCredentials) {
-                    //this.oAuthSetAppRPC : function(req, key, secret, done) {
-                    // passport maps
-                    // consumerKey, clientID
-                    // consumerSecret, clientSecret
-                    
-                    var key = (req.query.clientID ? req.query.clientID : req.query.consumerKey),
-                        secret = (req.query.clientSecret ? req.query.clientSecret : req.query.consumerSecret);
-                    
-                    this.oAuthSetAppRPC(req, key, secret, function(err, accountInfo) {
-                        if (err) {
-                            app.logmessage(err, 'error');
-                        } else {
-                            app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
-                            passport[authMethod](podName, {
-                                scope : this._oAuthScope
-                            })(req, res);
-                            ok = true;
-                        }
-                    });
-                } else {                
-                    app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
-                    passport[authMethod](podName, {
-                        scope : this._oAuthScope
-                    })(req, res);
-                    ok = true;
-                }
+            if (method == 'auth') {            
+                app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
+                passport[authMethod](podName, {
+                    scope : this._oAuthScope
+                })(req, res);
+                ok = true;                
 
             } else if (method == 'cb') {
                 app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
@@ -852,6 +794,27 @@ Pod.prototype = {
 
     },
 
+    _installSingleton : function(template, accountInfo, next) {
+        var installedKeys = [];
+        // don't care about catching duplicates right now
+        var model = dao.modelFactory('channel', channelTemplate, { user : accountInfo } );
+        dao.create(model, function(err, result) {
+            i++;
+            if (err) {
+                app.logmessage(err, 'error');
+                errors = true;
+            } else {
+                installedKeys.push(channelTemplate.action);
+            }
+
+            if (i === keyLen && next) {
+                // errors are already be logged
+                next(errors, (errors ? 'There were errors' : installedKeys.toString()) );
+            }
+
+        }, { user : accountInfo });
+    },
+
     /**
      * Auto installs singletons for the supplied user
      */
@@ -876,9 +839,7 @@ Pod.prototype = {
         if (keyLen && singles) {            
             for (key in this._schemas) {
                 s = this._schemas[key];
-                if (s.singleton || s.auto) {
-                    
-                    
+                if (s.singleton || s.auto) {                   
                     channelTemplate = {
                         name : s.description,
                         action : this._name + '.' + key,
@@ -888,23 +849,21 @@ Pod.prototype = {
 
                     // don't care about catching duplicates right now
                     model = dao.modelFactory('channel', channelTemplate, { user : accountInfo } );
-                    dao.create(model, function(err, result) {
+                    dao.create(model, function(err, modelName, result) {
                         i++;
                         if (err) {
                             app.logmessage(err, 'error');
                             errors = true;
                         } else {
-                            installedKeys.push(channelTemplate.action);
+                            installedKeys.push(result.action);
                         }
                         
                         if (i === keyLen && next) {
                             // errors are already be logged
-                            next(errors, (errors ? 'There were errors' : installedKeys.toString()) );
+                            next(errors, (errors ? 'There were errors' : installedKeys.toString()), result.owner_id );
                         }
 
                     }, { user : accountInfo });
-
-
                 }
             }
         } else if (next) {
@@ -939,8 +898,8 @@ Pod.prototype = {
             
         } else if (this._authType == 'issuer_token') {
             schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this._name + '/set';
-            if (this._config.authMap) {
-                schema.auth.authMap = this._config.authMap;                
+            if (this._authMap) {
+                schema.auth.authMap = this._authMap;
             }
         }
 
