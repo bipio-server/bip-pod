@@ -848,7 +848,7 @@ Pod.prototype = {
                     };
 
                     // don't care about catching duplicates right now
-                    model = dao.modelFactory('channel', channelTemplate, { user : accountInfo } );
+                    model = dao.modelFactory('channel', channelTemplate, accountInfo );
                     dao.create(model, function(err, modelName, result) {
                         i++;
                         if (err) {
