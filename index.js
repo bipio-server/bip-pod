@@ -50,7 +50,7 @@ function Pod(metadata) {
     this._dao = null;
     this._sysConfig = {};
     this._actionProtos = [];
-    
+
     this.actions = {};
     this.models = {};
     this.$resource = {};
@@ -120,7 +120,7 @@ Pod.prototype = {
         this.$resource.getDataSourceName = function(dsName) {
             return 'pod_' + self._name + '_' + dsName;
         };
-        
+
         this.$resource.getDataDir = this.getDataDir;
         this.$resource._httpGet = this._httpGet;
         this.$resource._httpStreamToFile = this._httpStreamToFile;
@@ -202,7 +202,7 @@ Pod.prototype = {
 
         if (this._authType == 'issuer_token') {
             ownerId = req.remoteUser.user.id;
-            
+
             if (method == 'set') {
                 app.logmessage('[' + ownerId + '] ISSUER_TOKEN ' + this._name + ' SET' );
 
@@ -232,18 +232,17 @@ Pod.prototype = {
                         res.send(500);
                     } else {
                         // update
-                        console.log(struct);
                         if (result) {
-                            self._dao.update('account_auth', result.id, struct, function(err, result) {       
+                            self._dao.update('account_auth', result.id, struct, function(err, result) {
                                 if (err) {
                                     app.logmessage(err, 'error');
                                     res.jsonp(500, {});
                                 } else {
                                     res.jsonp(200, {});
                                 }
-                            }, req.remoteUser);                        
+                            }, req.remoteUser);
                         } else {
-                            // create   
+                            // create
                             self._dao.create(model, function(err, result) {
                                 if (err) {
                                     app.logmessage(err, 'error');
@@ -278,12 +277,12 @@ Pod.prototype = {
 
         if (false !== this._oAuthRegistered) {
             // invoke the passport oauth handler
-            if (method == 'auth') {            
+            if (method == 'auth') {
                 app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
                 passport[authMethod](podName, {
                     scope : this._oAuthScope
                 })(req, res);
-                ok = true;                
+                ok = true;
 
             } else if (method == 'cb') {
                 app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
@@ -426,7 +425,7 @@ Pod.prototype = {
         var self = this,
             accountInfo = req.remoteUser,
             accountId = accountInfo.getId();
-            
+
         // upsert oAuth document
         var filter = {
             owner_id : accountId,
@@ -537,6 +536,14 @@ Pod.prototype = {
     // action can render its own stored content
     canRender: function(action) {
         return (this._renderers && this._renderers[action]);
+    },
+    
+    // tests whether renderer is available for an action
+    isRenderer : function(action, renderer) {
+      return (this._renderers 
+        && this._renderers[action] 
+        && this._renderers[action][renderer]
+      );
     },
 
     // description of the action
@@ -649,14 +656,17 @@ Pod.prototype = {
     },
 
     // returns the file based data dir for this pod
-    getDataDir: function(channel, action) {
+    getDataDir: function(channel, action, next) {
         var dDir = DATA_DIR + '/channels/';
 
         if (undefined != channel.owner_id) {
             dDir += channel.owner_id + '/';
         }
+        dDir += this._name + '/' + action + '/' + channel.id + '/';
 
-        dDir += this._name + '/' + action + '/' + channel.id;
+        if (next) {
+          app.helper.mkdir_p(dDir, 0777 , next);
+        }
 
         return dDir;
     },
@@ -707,8 +717,8 @@ Pod.prototype = {
             next = auth;
         } else {
             accountInfo._setupAuth = auth;
-        }       
-        
+        }
+
         if (this.actions[action] && this.actions[action].setup) {
             this.actions[action].setup(channel, accountInfo, next);
         } else {
@@ -726,7 +736,7 @@ Pod.prototype = {
      * @param sysImports {Object} System Imports and Account Info
      * @param contentParts
      * @paran next {Function} callback
-     */
+     */   
     invoke: function(action, channel, imports, sysImports, contentParts, next) {
         this.actions[action].invoke(imports, channel, sysImports, contentParts, next);
     },
@@ -735,8 +745,7 @@ Pod.prototype = {
      * RPC's are direct calls into a pod, so its up to the pod
      * to properly authenticate data etc.
      */
-
-    rpc : function(action, method, sysImports, options, channel, req, res) {        
+    rpc : function(action, method, sysImports, options, channel, req, res) {
         if (this.actions[action].rpc) {
             this.actions[action].rpc(method, sysImports, options, channel, req, res);
         } else {
@@ -836,10 +845,10 @@ Pod.prototype = {
             }
         }
 
-        if (keyLen && singles) {            
+        if (keyLen && singles) {
             for (key in this._schemas) {
                 s = this._schemas[key];
-                if (s.singleton || s.auto) {                   
+                if (s.singleton || s.auto) {
                     channelTemplate = {
                         name : s.description,
                         action : this._name + '.' + key,
@@ -857,7 +866,7 @@ Pod.prototype = {
                         } else {
                             installedKeys.push(result.action);
                         }
-                        
+
                         if (i === keyLen && next) {
                             // errors are already be logged
                             next(errors, (errors ? 'There were errors' : installedKeys.toString()), result.owner_id );
@@ -887,15 +896,15 @@ Pod.prototype = {
         // attach auth binders
         if (this._authType == 'oauth') {
             schema.auth.scopes = this._config.oauth.scopes || [];
-            schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' +  this._name + '/auth';            
+            schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' +  this._name + '/auth';
             schema.auth.authKeys = [];
 
             for (var k in this._config.oauth) {
                 if (this._config.oauth.hasOwnProperty(k) && /^client/.test(k)) {
-                    schema.auth.authKeys.push(k);                    
+                    schema.auth.authKeys.push(k);
                 }
             }
-            
+
         } else if (this._authType == 'issuer_token') {
             schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this._name + '/set';
             if (this._authMap) {
