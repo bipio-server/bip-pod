@@ -728,6 +728,20 @@ Pod.prototype = {
     },
 
     /**
+     * Runs the teardown for a pod action if one exists
+     *
+     *
+     *
+     */
+    teardown : function(action, channel, accountInfo, next) {
+        if (this.actions[action] && this.actions[action].teardown) {
+            this.actions[action].teardown(channel, accountInfo, next);
+        } else {
+            next(false, 'channel', channel);
+        }
+    },
+
+    /**
      * Invokes the action
      *
      * @param action {String} action name
