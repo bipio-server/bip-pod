@@ -886,7 +886,7 @@ Pod.prototype = {
                             next(errors, (errors ? 'There were errors' : installedKeys.toString()), result.owner_id );
                         }
 
-                    }, { user : accountInfo });
+                    }, accountInfo );
                 }
             }
         } else if (next) {
