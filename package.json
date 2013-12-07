@@ -1,6 +1,6 @@
 {
   "name": "bip-pod",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Bipio's Pod bridge and testing spindle",
   "keywords": [
     "bip",

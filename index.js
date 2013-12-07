@@ -489,6 +489,7 @@ Pod.prototype = {
 
   authGetIssuerToken : function(owner_id, provider, next) {
     var self = this;
+
     this._dao.find(
       'account_auth',
       {
@@ -503,6 +504,8 @@ Pod.prototype = {
         } else {
           if (err) {
             app.logmessage(err, 'error');
+          } else if (!result) {
+            app.logmessage('no result for owner_id:' + owner_id + ' provider:' + provider, 'error');
           }
           next(err, result);
         }
@@ -955,6 +958,12 @@ Pod.prototype = {
     }
 
     return schema;
+  },
+  
+  _testAndSet : function(key, srcObj, dstObj) {
+    if (undefined !== srcObj[key] && '' !== srcObj[key]) {
+     dstObj[key] = srcObj[key];
+    }    
   }
 }
 
