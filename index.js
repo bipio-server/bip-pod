@@ -78,6 +78,12 @@ Pod.prototype = {
       this._dao = dao;
     }
 
+    // register generic tracker
+    var tracker = require('./models/channel_pod_tracking');
+    extend(true, tracker, Object.create(dao.getModelPrototype()));
+    this._dao.registerModel(tracker);
+
+    // register pod data sources
     for (var i = 0; i < dsi; i++) {
       dataSource = this._dataSources[i];
       // namespace the model
@@ -86,16 +92,6 @@ Pod.prototype = {
       extend(true, dataSource, Object.create(dao.getModelPrototype()));
       this._dao.registerModel(dataSource);
     }
-
-    // create an imports container
-    /*
-        for (var action in this._schemas) {
-            this._importContainer[this._schemas[action]] = {};
-            for ( var attribute in this._schemas[action]) {
-                this._importContainer[this._schemas[action]][attribute] = ''
-            }
-        }
-        */
 
     if (config) {
       this.setConfig(config);
@@ -112,7 +108,6 @@ Pod.prototype = {
         self._config.oauth.scopes || []
         );
     }
-
 
     // create resources for Actions
     this.$resource.dao = dao;
@@ -795,31 +790,61 @@ Pod.prototype = {
   /**
      * Creates a trigger tracking record
      */
-  trackingStart : function(channel, accountInfo) {
-    var trackingStruct = {
+  trackingStart : function(channel, accountInfo, fromNow, next) {
+    var nowTime = app.helper.nowUTCSeconds(),
+    trackingStruct = {
       owner_id : channel.owner_id,
-      created : app.helper.nowUTCSeconds(),
-      last_poll : 0,
-      last_update_remote : 0,
-      channel_id : channel.id,
-      active : true
-    }
+      created : nowTime,
+      last_poll : fromNow ? nowTime : 0,
+      channel_id : channel.id
+    };
 
-    model = this._dao.modelFactory('channel_pod_tracking', trackingStruct, accountInfo);
-
-    this._dao.create(model, function(err, result) {
-      if (err) {
-        console.log(err);
-      }
-    }, accountInfo);
+    var model = this._dao.modelFactory('channel_pod_tracking', trackingStruct, accountInfo);
+    this._dao.create(model, next, accountInfo);
   },
 
-  /**
-     * Updates tracking times for the trigger
-     */
-  trackingUpdate : function(channel, last_update_remote) {
-    var last_poll = app.helper.nowUTCSeconds();
+  // get last poll time for tracker
+  trackingGet : function(channel, next) {
+    var filter = {
+      channel_id : channel.id,
+      owner_id : channel.owner_id
+    };
+      
+    this._dao.findFilter('channel_pod_tracking', filter, function(err, result) {
+      next(err || !result, result && result.length > 0 ? result[0].last_poll : null);
+    });
+  },
 
+  // set last poll time
+  trackingUpdate : function(channel, next) {
+    var filter = {
+      channel_id : channel.id,
+      owner_id : channel.owner_id
+    },
+    props = {
+      last_poll : app.helper.nowUTCSeconds()
+    }
+    
+    this._dao.updateColumn(
+      'channel_pod_tracking', 
+      filter, 
+      props,
+      function(err) {
+        if (err) {
+          app.log(err, 'error');
+        }
+        next(err, props.last_poll);
+      }
+      );
+  },
+
+  trackingRemove : function(channel, accountInfo, next) {
+    var filter = {
+      channel_id : channel.id,
+      owner_id : channel.owner_id
+    };
+      
+    this._dao.removeFilter('channel_pod_tracking', filter, next);
   },
 
   /**
@@ -962,7 +987,7 @@ Pod.prototype = {
   
   _testAndSet : function(key, srcObj, dstObj) {
     if (undefined !== srcObj[key] && '' !== srcObj[key]) {
-     dstObj[key] = srcObj[key];
+      dstObj[key] = srcObj[key];
     }    
   }
 }
