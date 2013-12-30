@@ -117,6 +117,7 @@ Pod.prototype = {
     };
 
     this.$resource.getDataDir = this.getDataDir;
+    this.$resource.getCDNDir = this.getCDNDir;
     this.$resource._httpGet = this._httpGet;
     this.$resource._httpStreamToFile = this._httpStreamToFile;
 
@@ -437,7 +438,7 @@ Pod.prototype = {
       type : 'oauth',
       oauth_provider : this._name,
       oauth_refresh : refreshToken,
-      oauth_profile : profile._json
+      oauth_profile : profile._json ? profile._json : profile
     };
 
     var model = this._dao.modelFactory('account_auth', struct);
@@ -668,9 +669,8 @@ Pod.prototype = {
     });
   },
 
-  // returns the file based data dir for this pod
-  getDataDir: function(channel, action, next) {
-    var dDir = DATA_DIR + '/channels/';
+  _createChannelDir : function(pfx, channel, action, next) {
+    var dDir = pfx + '/channels/';
 
     if (undefined != channel.owner_id) {
       dDir += channel.owner_id + '/';
@@ -682,6 +682,16 @@ Pod.prototype = {
     }
 
     return dDir;
+  },
+
+  // returns the file based data dir for this pod
+  getDataDir: function(channel, action, next) {
+    return this._createChannelDir(DATA_DIR, channel, action, next);
+  },
+
+  // gets public cdn
+  getCDNDir : function(channel, action, next) {
+    return this._createChannelDir(CDN_DIR, channel, action, next);
   },
 
   // -------------------------------------------------------------------------
