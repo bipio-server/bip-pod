@@ -37,10 +37,11 @@ function Pod(metadata) {
   this._config = metadata.config || null;
   this._dataSources = metadata.dataSources || [];
   this._oAuth = null;
-  // @todo oAuthScope should direclty key into which actions are available
-  // for the pod so that we have a clean upgrade path for users. ie: they
-  // reauthenticate and we upgrade the perms + install new channels
-  this._oAuthScope = [];
+
+  if (metadata.oAuthRefresh) {
+    this._oAuthRefresh = metadata.oAuthRefresh;
+  }
+
   this._oAuthRegistered = false;
   this._passportStrategy = metadata.passportStrategy;
   this._sysImports = null;
@@ -103,10 +104,8 @@ Pod.prototype = {
     if (this._authType === 'oauth') {
       this._oAuthRegisterStrategy(
         this._passportStrategy,
-        self._config.oauth,
-        // oAuth permission list
-        self._config.oauth.scopes || []
-        );
+        self._config.oauth
+      );
     }
 
     // create resources for Actions
@@ -270,18 +269,16 @@ Pod.prototype = {
      */
   oAuthRPC: function(podName, method, req, res) {
     var ok = false,
-    authMethod = (this._oAuthMethod) ? this._oAuthMethod : 'authorize',
-    self = this,
-    accountInfo = req.remoteUser,
-    accountId = accountInfo.getId();
+      authMethod = (this._oAuthMethod) ? this._oAuthMethod : 'authorize',
+      self = this,
+      accountInfo = req.remoteUser,
+      accountId = accountInfo.getId();
 
     if (false !== this._oAuthRegistered) {
       // invoke the passport oauth handler
       if (method == 'auth') {
         app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
-        passport[authMethod](podName, {
-          scope : this._oAuthScope
-        })(req, res);
+        passport[authMethod](podName, this._oAuthConfig)(req, res);
         ok = true;
 
       } else if (method == 'cb') {
@@ -388,7 +385,7 @@ Pod.prototype = {
      * Registers an oAuth strategy for this pod
      *
      */
-  _oAuthRegisterStrategy : function(strategy, config, scope) {
+  _oAuthRegisterStrategy : function(strategy, config) {
     var localConfig = {
       callbackURL : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this._name + '/cb',
       failureRedirect : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this._name + '/denied',
@@ -399,12 +396,20 @@ Pod.prototype = {
       localConfig[key] = config[key];
     }
 
-    this._oAuthScope = scope;
+    this._oAuthConfig = {
+      scope : config.scopes
+    };
+
+    if (config.extras) {
+      app.helper.copyProperties(config.extras, this._oAuthConfig);
+    }
+
     this._oAuthRegistered = true;
     passport.use(new strategy(
       localConfig,
-      function(req, accessToken, refreshToken, profile, done) {
-        self.oAuthBinder(req, accessToken, refreshToken, profile, done);
+      function(req, accessToken, refreshToken, params, profile, done) {
+        // maintain scope
+        self.oAuthBinder(req, accessToken, refreshToken, params, profile, done);
       }));
   },
 
@@ -421,7 +426,7 @@ Pod.prototype = {
     this._dao.removeFilter('account_auth', filter, next);
   },
 
-  oAuthBinder: function(req, accessToken, refreshToken, profile, done) {
+  oAuthBinder: function(req, accessToken, refreshToken, params, profile, done) {
     var self = this,
     accountInfo = req.remoteUser,
     accountId = accountInfo.getId();
@@ -440,6 +445,10 @@ Pod.prototype = {
       oauth_refresh : refreshToken,
       oauth_profile : profile._json ? profile._json : profile
     };
+
+    if (params.expires_in) {
+      struct.oauth_token_expire = params.expires_in;
+    }
 
     var model = this._dao.modelFactory('account_auth', struct);
 
@@ -472,7 +481,12 @@ Pod.prototype = {
         var authRecord;
         if (!err && result) {
           authRecord = self._dao.modelFactory('account_auth', result);
-          next(false, authRecord.getPassword(), authRecord.getOAuthRefresh(), authRecord.getOauthProfile());
+          next(
+            false,
+            authRecord.getPassword(),
+            authRecord.getOAuthRefresh(),
+            authRecord.getOauthProfile()
+          );
         } else {
           if (err) {
             app.logmessage(err, 'error');
@@ -481,6 +495,31 @@ Pod.prototype = {
         }
       }
       );
+  },
+
+  oAuthRefresh : function(authModel) {
+    var refreshToken = authModel.getOAuthRefresh(),
+      self = this;
+
+    this._oAuthRefresh(refreshToken, function(err, refreshStruct) {
+      if (!err) {        
+        self._dao.updateProperties(
+          'account_auth', 
+          authModel.id,
+          {          
+            password : refreshStruct.access_token,
+            oauth_token_expire : refreshStruct.expires_in
+          },
+          function(err) {
+            if (!err) {
+              app.logmessage(self._name + ':OAuthRefresh:' + authModel.owner_id);
+            } else {
+              app.logmessage(err, 'error');
+            }            
+          }
+        );
+      }
+    });
   },
 
   authGetIssuerToken : function(owner_id, provider, next) {
@@ -645,7 +684,7 @@ Pod.prototype = {
               request.get(
                 url,
                 function(exports, fileStruct) {
-                  return function(error, res, body) {                    
+                  return function(error, res, body) {
                     fs.unlink(outLock);
                     if (!error && res.statusCode == 200) {
                       fs.stat(outFile, function(err, stats) {
@@ -819,7 +858,7 @@ Pod.prototype = {
       channel_id : channel.id,
       owner_id : channel.owner_id
     };
-      
+
     this._dao.findFilter('channel_pod_tracking', filter, function(err, result) {
       next(err || !result, result && result.length > 0 ? result[0].last_poll : null);
     });
@@ -834,10 +873,10 @@ Pod.prototype = {
     props = {
       last_poll : app.helper.nowUTCSeconds()
     }
-    
+
     this._dao.updateColumn(
-      'channel_pod_tracking', 
-      filter, 
+      'channel_pod_tracking',
+      filter,
       props,
       function(err) {
         if (err) {
@@ -853,7 +892,7 @@ Pod.prototype = {
       channel_id : channel.id,
       owner_id : channel.owner_id
     };
-      
+
     this._dao.removeFilter('channel_pod_tracking', filter, next);
   },
 
@@ -994,11 +1033,11 @@ Pod.prototype = {
 
     return schema;
   },
-  
+
   _testAndSet : function(key, srcObj, dstObj) {
     if (undefined !== srcObj[key] && '' !== srcObj[key]) {
       dstObj[key] = srcObj[key];
-    }    
+    }
   }
 }
 
