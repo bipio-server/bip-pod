@@ -25,7 +25,7 @@ var Pod = require('bip-pod'),
         description_long : 'A basic template for creating pods of your own'
     });
 
-Boilerplate.add(require('./sample.js'));
+Boilerplate.add(require('./simple.js'));
 
 // -----------------------------------------------------------------------------
 module.exports = Boilerplate;
