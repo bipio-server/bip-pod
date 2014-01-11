@@ -1,4 +1,4 @@
-![Boilerplate](boilerplate.png) bip-pod-boilerplate
+![Boilerplate](undefined.png) bip-pod-boilerplate
 =======
 
 <a href="http://en.wikipedia.org/wiki/Boilerplate_(text)">boilerplate</a> pod for [bipio](https://bip.io).  
