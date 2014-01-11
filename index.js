@@ -118,6 +118,7 @@ Pod.prototype = {
     this.$resource.getDataDir = this.getDataDir;
     this.$resource.getCDNDir = this.getCDNDir;
     this.$resource._httpGet = this._httpGet;
+    this.$resource._httpPost = this._httpPost;
     this.$resource._httpStreamToFile = this._httpStreamToFile;
 
     // bind actions
@@ -650,6 +651,21 @@ Pod.prototype = {
       }
       cb(error, body);
     });
+  },
+
+  _httpPost: function(url, postData, cb) {
+    request({
+        url : url,
+        method : 'POST',
+        json : postData,
+        headers: {
+          'User-Agent': 'request'
+        }
+      },
+      function(error, res, body) {
+        cb(error, body);
+      }
+    );
   },
 
   /**
