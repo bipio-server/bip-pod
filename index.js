@@ -22,10 +22,11 @@
  * A Bipio Commercial OEM License may be obtained via enquiries@cloudspark.com.au
  */
 var passport = require('passport'),
-request = require('request'),
-util = require('util'),
-fs = require('fs'),
-extend = require('extend');
+  request = require('request'),
+  moment = require('moment'),
+  util = require('util'),
+  fs = require('fs'),
+  extend = require('extend');
 
 // constructor
 function Pod(metadata) {
@@ -110,6 +111,7 @@ Pod.prototype = {
 
     // create resources for Actions
     this.$resource.dao = dao;
+    this.$resource.moment = moment;
     this.$resource.log = this.log;
     this.$resource.getDataSourceName = function(dsName) {
       return 'pod_' + self._name + '_' + dsName;
@@ -645,12 +647,21 @@ Pod.prototype = {
 
   // -------------------------------------------------- STREAMING AND POD DATA
   _httpGet: function(url, cb) {
-    request(url, function(error, res, body) {
-      if (!error && res.headers['content-type'].indexOf('json')) {
-        body = JSON.parse(body);
+    request(
+      {
+        url : url,
+        method : 'GET',
+        headers: {
+          'User-Agent': 'request'
+        }
+      }, 
+      function(error, res, body) { 
+        if (!error && -1 !== res.headers['content-type'].indexOf('json')) {
+          body = JSON.parse(body);
+        }
+        cb(error, body, res.headers);
       }
-      cb(error, body);
-    });
+    );
   },
 
   _httpPost: function(url, postData, cb) {
@@ -663,7 +674,7 @@ Pod.prototype = {
         }
       },
       function(error, res, body) {
-        cb(error, body);
+        cb(error, body, res.headers);
       }
     );
   },
