@@ -841,7 +841,14 @@ Pod.prototype = {
      * @paran next {Function} callback
      */
   invoke: function(action, channel, imports, sysImports, contentParts, next) {
-    this.actions[action].invoke(imports, channel, sysImports, contentParts, next);
+    var self = this;
+    //this.actions[action].invoke(imports, channel, sysImports, contentParts, next);
+    this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
+      if (err) {
+        self.log(err, channel, 'error');
+      }
+      next.apply(self, arguments);
+    });
   },
 
   /**
