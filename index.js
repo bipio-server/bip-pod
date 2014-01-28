@@ -22,11 +22,11 @@
  * A Bipio Commercial OEM License may be obtained via enquiries@cloudspark.com.au
  */
 var passport = require('passport'),
-  request = require('request'),
-  moment = require('moment'),
-  util = require('util'),
-  fs = require('fs'),
-  extend = require('extend');
+request = require('request'),
+moment = require('moment'),
+util = require('util'),
+fs = require('fs'),
+extend = require('extend');
 
 // constructor
 function Pod(metadata) {
@@ -106,7 +106,7 @@ Pod.prototype = {
       this._oAuthRegisterStrategy(
         this._passportStrategy,
         self._config.oauth
-      );
+        );
     }
 
     // create resources for Actions
@@ -272,10 +272,10 @@ Pod.prototype = {
      */
   oAuthRPC: function(podName, method, req, res) {
     var ok = false,
-      authMethod = (this._oAuthMethod) ? this._oAuthMethod : 'authorize',
-      self = this,
-      accountInfo = req.remoteUser,
-      accountId = accountInfo.getId();
+    authMethod = (this._oAuthMethod) ? this._oAuthMethod : 'authorize',
+    self = this,
+    accountInfo = req.remoteUser,
+    accountId = accountInfo.getId();
 
     if (false !== this._oAuthRegistered) {
       // invoke the passport oauth handler
@@ -489,7 +489,7 @@ Pod.prototype = {
             authRecord.getPassword(),
             authRecord.getOAuthRefresh(),
             authRecord.getOauthProfile()
-          );
+            );
         } else {
           if (err) {
             app.logmessage(err, 'error');
@@ -502,14 +502,14 @@ Pod.prototype = {
 
   oAuthRefresh : function(authModel) {
     var refreshToken = authModel.getOAuthRefresh(),
-      self = this;
+    self = this;
 
     this._oAuthRefresh(refreshToken, function(err, refreshStruct) {
-      if (!err) {        
+      if (!err) {
         self._dao.updateProperties(
-          'account_auth', 
+          'account_auth',
           authModel.id,
-          {          
+          {
             password : refreshStruct.access_token,
             oauth_token_expire : refreshStruct.expires_in
           },
@@ -518,9 +518,9 @@ Pod.prototype = {
               app.logmessage(self._name + ':OAuthRefresh:' + authModel.owner_id);
             } else {
               app.logmessage(err, 'error');
-            }            
+            }
           }
-        );
+          );
       }
     });
   },
@@ -648,34 +648,35 @@ Pod.prototype = {
   // -------------------------------------------------- STREAMING AND POD DATA
   _httpGet: function(url, cb) {
     request(
-      {
-        url : url,
-        method : 'GET',
-        headers: {
-          'User-Agent': 'request'
-        }
-      }, 
-      function(error, res, body) { 
-        if (!error && -1 !== res.headers['content-type'].indexOf('json')) {
-          body = JSON.parse(body);
-        }
-        cb(error, body, res.headers);
+    {
+      url : url,
+      method : 'GET',
+      headers: {
+        'User-Agent': 'request'
       }
+    },
+    function(error, res, body) {
+      if (!error && -1 !== res.headers['content-type'].indexOf('json')) {
+        body = JSON.parse(body);
+      }
+
+      cb(error, body, res.headers, res.statusCode);
+    }
     );
   },
 
   _httpPost: function(url, postData, cb) {
     request({
-        url : url,
-        method : 'POST',
-        json : postData,
-        headers: {
-          'User-Agent': 'request'
-        }
-      },
-      function(error, res, body) {
-        cb(error, body, res.headers);
+      url : url,
+      method : 'POST',
+      json : postData,
+      headers: {
+        'User-Agent': 'request'
       }
+    },
+    function(error, res, body) {
+      cb(error, body, res.headers);
+    }
     );
   },
 
