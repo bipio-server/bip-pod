@@ -646,14 +646,24 @@ Pod.prototype = {
   },
 
   // -------------------------------------------------- STREAMING AND POD DATA
-  _httpGet: function(url, cb) {
+  _httpGet: function(url, cb, headers) {
+    var headerStruct = {
+      'User-Agent': 'request'      
+    };
+    
+    if (headers) {
+      for (var k in headers) {
+        if (headers.hasOwnProperty(k)) {
+          headerStruct[k] = headers[k];
+        }
+      }
+    }
+    
     request(
     {
       url : url,
       method : 'GET',
-      headers: {
-        'User-Agent': 'request'
-      }
+      headers: headerStruct
     },
     function(error, res, body) {
       if (!error && -1 !== res.headers['content-type'].indexOf('json')) {
@@ -665,17 +675,27 @@ Pod.prototype = {
     );
   },
 
-  _httpPost: function(url, postData, cb) {
+  _httpPost: function(url, postData, next, headers) {
+    var headerStruct = {
+      'User-Agent': 'request'      
+    };
+    
+    if (headers) {
+      for (var k in headers) {
+        if (headers.hasOwnProperty(k)) {
+          headerStruct[k] = headers[k];
+        }
+      }
+    }
+    
     request({
       url : url,
       method : 'POST',
       json : postData,
-      headers: {
-        'User-Agent': 'request'
-      }
+      headers: headers
     },
     function(error, res, body) {
-      cb(error, body, res.headers);
+      next(error, body, res.headers);
     }
     );
   },
@@ -737,28 +757,65 @@ Pod.prototype = {
   },
 
   _createChannelDir : function(pfx, channel, action, next) {
-    var dDir = pfx + '/channels/';
+    var self = this,
+      dDir = pfx + '/channels/';
 
     if (undefined != channel.owner_id) {
       dDir += channel.owner_id + '/';
     }
     dDir += this._name + '/' + action + '/' + channel.id + '/';
-
-    if (next) {
-      app.helper.mkdir_p(dDir, 0777 , next);
-    }
+   
+    app.helper.mkdir_p(dDir, 0777 , function(err, path) {
+      if (err) {
+        self.log(err.message, channel, 'error');
+      }
+      if (next) {          
+        next(err, path);
+      }
+    });
+    
 
     return dDir;
   },
+
+  _rmChannelDir : function(pfx, channel, action, next) {
+    var self = this,
+      files, file, dDir = pfx + '/channels/';
+
+    if (undefined != channel.owner_id) {
+      dDir += channel.owner_id + '/';
+    }
+    dDir += this._name + '/' + action + '/' + channel.id + '/';
+    
+    app.helper.rmdir(dDir, function(err) {
+      if (err) {
+        self.log(err.message, channel, 'error');
+      }
+      if (next) {
+        next(err);
+      }
+    });
+  },
+
 
   // returns the file based data dir for this pod
   getDataDir: function(channel, action, next) {
     return this._createChannelDir(DATA_DIR, channel, action, next);
   },
 
+  // remove datadir and all of its contents
+  rmDataDir : function(channel, action, next) {
+    return this._rmChannelDir(DATA_DIR, channel, action, next);
+  },
+
   // gets public cdn
   getCDNDir : function(channel, action, next) {
     return this._createChannelDir(CDN_DIR, channel, action, next);
+  },
+  
+  // removes cdn dir and all of its contents
+  rmCDNDir : function(channel, action, next) {
+    return this._rmChannelDir(CDN_DIR, channel, action, next);
   },
 
   // -------------------------------------------------------------------------
@@ -1065,7 +1122,7 @@ Pod.prototype = {
         }
       }
     }
-
+    
     return schema;
   },
 
