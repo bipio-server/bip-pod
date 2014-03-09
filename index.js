@@ -27,6 +27,8 @@ moment = require('moment'),
 util = require('util'),
 fs = require('fs'),
 extend = require('extend');
+uuid = require('node-uuid'),
+mime = require('mime');
 
 // constructor
 function Pod(metadata) {
@@ -112,6 +114,8 @@ Pod.prototype = {
     // create resources for Actions
     this.$resource.dao = dao;
     this.$resource.moment = moment;
+    this.$resource.mime = mime;
+    this.$resource.uuid = uuid;
     this.$resource.log = this.log;
     this.$resource.getDataSourceName = function(dsName) {
       return 'pod_' + self._name + '_' + dsName;
@@ -122,6 +126,7 @@ Pod.prototype = {
     this.$resource._httpGet = this._httpGet;
     this.$resource._httpPost = this._httpPost;
     this.$resource._httpStreamToFile = this._httpStreamToFile;
+    this.$resource._isVisibleHost = this._isVisibleHost;
 
     // bind actions
     var action;
@@ -593,7 +598,7 @@ Pod.prototype = {
 
   // description of the action
   getActionDescription : function(action) {
-    if (action) {
+    if (action && this._schemas[action]) {
       return this._schemas[action].description
     } else {
       return this.repr();
@@ -646,6 +651,22 @@ Pod.prototype = {
   },
 
   // -------------------------------------------------- STREAMING AND POD DATA
+  
+  _isVisibleHost : function(host, next, channel) {
+    var self = this;
+    app.helper.hostBlacklisted(host, function(err, blacklisted, resolved) {
+      if (err) {
+        if (channel) {
+          self.log(err, channel, 'error');
+        } else {
+          app.logmessage(err, 'error');
+        }
+      } else {
+        next(err, blacklisted, resolved);
+      }
+    });
+  },
+  
   _httpGet: function(url, cb, headers) {
     var headerStruct = {
       'User-Agent': 'request'      
