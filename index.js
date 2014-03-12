@@ -116,6 +116,10 @@ Pod.prototype = {
     this.$resource.moment = moment;
     this.$resource.mime = mime;
     this.$resource.uuid = uuid;
+    this.$resource.sanitize = app.helper.sanitize;
+    this.$resource.htmlNormalize = function() {
+      return app.helper.naturalize.apply(app.helper, arguments);
+    };
     this.$resource.log = this.log;
     this.$resource.getDataSourceName = function(dsName) {
       return 'pod_' + self._name + '_' + dsName;
@@ -131,7 +135,7 @@ Pod.prototype = {
     // bind actions
     var action;
     for (i = 0; i < this._actionProtos.length; i++) {
-      action = new this._actionProtos[i](this._config);
+      action = new this._actionProtos[i](this._config, this);
       action.$resource = this.$resource;
       action.pod = this;
       this.actions[action.name] = action;
@@ -921,7 +925,13 @@ Pod.prototype = {
      */
   invoke: function(action, channel, imports, sysImports, contentParts, next) {
     var self = this;
-    //this.actions[action].invoke(imports, channel, sysImports, contentParts, next);
+    
+    if (!contentParts) {
+      contentParts = {
+        _files : []
+      }
+    }
+    
     this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
       if (err) {
         self.log(err, channel, 'error');
