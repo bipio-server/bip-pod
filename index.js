@@ -656,9 +656,9 @@ Pod.prototype = {
 
   // -------------------------------------------------- STREAMING AND POD DATA
   
-  _isVisibleHost : function(host, next, channel) {
+  _isVisibleHost : function(host, next, channel, whitelist) {
     var self = this;
-    app.helper.hostBlacklisted(host, function(err, blacklisted, resolved) {
+    app.helper.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
       if (err) {
         if (channel) {
           self.log(err, channel, 'error');
