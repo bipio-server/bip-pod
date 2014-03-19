@@ -31,7 +31,7 @@ uuid = require('node-uuid'),
 mime = require('mime');
 
 // constructor
-function Pod(metadata) {
+function Pod(metadata, init) {
   this._name = metadata.name || 'Anonymous Pod';
   this._description = metadata.description;
   this._description_long = metadata.description_long;
@@ -40,6 +40,7 @@ function Pod(metadata) {
   this._config = metadata.config || null;
   this._dataSources = metadata.dataSources || [];
   this._oAuth = null;
+  this._podInit = init;
 
   if (metadata.oAuthRefresh) {
     this._oAuthRefresh = metadata.oAuthRefresh;
@@ -140,6 +141,10 @@ Pod.prototype = {
       action.pod = this;
       this.actions[action.name] = action;
       this._schemas[action.name] = this.buildSchema(action);
+    }
+    
+    if (this._podInit) {
+      this._podInit.apply(this);
     }
   },
 
