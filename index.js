@@ -717,12 +717,12 @@ Pod.prototype = {
         }
       }
     }
-    
+
     request({
       url : url,
       method : 'POST',
       json : postData,
-      headers: headers
+      headers: headerStruct
     },
     function(error, res, body) {
       next(error, body, res.headers);
