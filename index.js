@@ -959,7 +959,7 @@ Pod.prototype = {
   * to properly authenticate data etc.
   */
   rpc : function(action, method, sysImports, options, channel, req, res) {
-    if (this.actions[action].rpc) {
+    if (this.actions[action] && this.actions[action].rpc) {
       this.actions[action].rpc(method, sysImports, options, channel, req, res);
     } else {
       res.send(404);
