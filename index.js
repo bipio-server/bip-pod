@@ -39,6 +39,7 @@ function Pod(metadata, init) {
   this._authMap = metadata.authMap || null;
   this._config = metadata.config || null;
   this._dataSources = metadata.dataSources || [];
+  this._renderers = metadata.renderers || {};
   this._oAuth = null;
   this._podInit = init;
 
@@ -81,6 +82,14 @@ Pod.prototype = {
 
     if (!this._dao) {
       this._dao = dao;
+    }
+
+    if (this._renderers) {
+      for (var k in this._renderers) {
+        if (this._renderers.hasOwnProperty(k)) {
+          this._renderers[k]._href = this._dao.getBaseUrl() + '/rpc/pod/' + self._name + '/render/' + k;
+        }
+      }
     }
 
     // register generic tracker
@@ -946,14 +955,14 @@ Pod.prototype = {
   },
 
   /**
-     * RPC's are direct calls into a pod, so its up to the pod
-     * to properly authenticate data etc.
-     */
+  * RPC's are direct calls into a pod, so its up to the pod
+  * to properly authenticate data etc.
+  */
   rpc : function(action, method, sysImports, options, channel, req, res) {
     if (this.actions[action].rpc) {
       this.actions[action].rpc(method, sysImports, options, channel, req, res);
     } else {
-      res(404);
+      res.send(404);
     }
   },
 
@@ -1128,6 +1137,7 @@ Pod.prototype = {
         type : this._authType,
         status : this._authType  == 'none' ? 'accepted' : 'required'
       },
+      'renderers' : this._renderers,
       'actions' : {}
     };
 
