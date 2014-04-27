@@ -28,7 +28,8 @@ util = require('util'),
 fs = require('fs'),
 extend = require('extend');
 uuid = require('node-uuid'),
-mime = require('mime');
+mime = require('mime'),
+cron = require('cron');
 
 // constructor
 function Pod(metadata, init) {
@@ -59,7 +60,8 @@ function Pod(metadata, init) {
 
   this.actions = {};
   this.models = {};
-  this.$resource = {};
+  this.$resource = {}; 
+  this.crons = {};
 }
 
 Pod.prototype = {
@@ -141,6 +143,11 @@ Pod.prototype = {
     this.$resource._httpPost = this._httpPost;
     this.$resource._httpStreamToFile = this._httpStreamToFile;
     this.$resource._isVisibleHost = this._isVisibleHost;
+    
+    // give the pod a scheduler
+    if (app.isMaster) {
+      this.$resource.cron = cron;
+    }
 
     // bind actions
     var action;
@@ -154,6 +161,24 @@ Pod.prototype = {
     
     if (this._podInit) {
       this._podInit.apply(this);
+    }
+  },
+
+  // provide a scheduler service
+  registerCron : function(id, period, callback) {
+    var self = this;
+    
+    setTimeout(function() {
+      callback.apply(self);
+    }, 2000);
+    return;
+    
+    if (this.$resource.cron) {
+      if (!this.crons[id]) {
+        this.crons[id] = new this.$resource.cron.CronJob(period, function() {
+          callback.apply(self);
+        });
+      }      
     }
   },
 
@@ -433,9 +458,11 @@ Pod.prototype = {
     this._oAuthRegistered = true;
     passport.use(new strategy(
       localConfig,
-      function(req, accessToken, refreshToken, params, profile, done) {
+      //function(req, accessToken, refreshToken, params, profile, done) {
+      function() {
         // maintain scope
-        self.oAuthBinder(req, accessToken, refreshToken, params, profile, done);
+        //self.oAuthBinder(req, accessToken, refreshToken, params, profile, done);
+        self.oAuthBinder.apply(self, arguments);
       }));
   },
 
@@ -1133,6 +1160,7 @@ Pod.prototype = {
       'name' : this._name,
       'description' : this._description,
       'description_long' : this._description_long,
+      'icon' : CFG.cdn_public + '/pods/' + this._name + '.png',
       'auth' : {
         type : this._authType,
         status : this._authType  == 'none' ? 'accepted' : 'required'
@@ -1176,7 +1204,7 @@ Pod.prototype = {
     if (undefined !== srcObj[key] && '' !== srcObj[key]) {
       dstObj[key] = srcObj[key];
     }
-  }
+  }  
 }
 
 module.exports = Pod;

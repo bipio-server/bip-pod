@@ -1,6 +1,6 @@
 {
   "name": "bip-pod",
-  "version": "0.2.14",
+  "version": "0.2.15",
   "description": "Bipio's Pod bridge and testing spindle",
   "keywords": [
     "bip",
@@ -22,13 +22,14 @@
   ],
   "main": ".",
   "dependencies": {
-    "pkginfo": "0.2.x",
-    "request": ">= 2.2.9",
-    "passport": ">=0.1.15",
+    "cron": "^1.0.4",
     "extend": ">=1.1.3",
-    "moment" : ">=2.5.0",
-    "node-uuid" : "1.3.3",
-    "mime" : ">=1.2.11"
+    "mime": ">=1.2.11",
+    "moment": ">=2.5.0",
+    "node-uuid": "1.3.3",
+    "passport": ">=0.1.15",
+    "pkginfo": "0.2.x",
+    "request": ">= 2.2.9"
   },
   "engines": {
     "node": ">= 0.10.0"
