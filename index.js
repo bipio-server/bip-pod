@@ -60,7 +60,7 @@ function Pod(metadata, init) {
 
   this.actions = {};
   this.models = {};
-  this.$resource = {}; 
+  this.$resource = {};
   this.crons = {};
 }
 
@@ -139,11 +139,12 @@ Pod.prototype = {
 
     this.$resource.getDataDir = this.getDataDir;
     this.$resource.getCDNDir = this.getCDNDir;
+    this.$resource.expireCDNDir = this.expireCDNDir;
     this.$resource._httpGet = this._httpGet;
     this.$resource._httpPost = this._httpPost;
     this.$resource._httpStreamToFile = this._httpStreamToFile;
     this.$resource._isVisibleHost = this._isVisibleHost;
-    
+
     // give the pod a scheduler
     if (app.isMaster) {
       this.$resource.cron = cron;
@@ -158,7 +159,7 @@ Pod.prototype = {
       this.actions[action.name] = action;
       this._schemas[action.name] = this.buildSchema(action);
     }
-    
+
     if (this._podInit) {
       this._podInit.apply(this);
     }
@@ -167,18 +168,19 @@ Pod.prototype = {
   // provide a scheduler service
   registerCron : function(id, period, callback) {
     var self = this;
-    
+
+/*
     setTimeout(function() {
       callback.apply(self);
     }, 2000);
     return;
-    
+*/
     if (this.$resource.cron) {
       if (!this.crons[id]) {
         this.crons[id] = new this.$resource.cron.CronJob(period, function() {
           callback.apply(self);
         });
-      }      
+      }
     }
   },
 
@@ -696,7 +698,7 @@ Pod.prototype = {
   },
 
   // -------------------------------------------------- STREAMING AND POD DATA
-  
+
   _isVisibleHost : function(host, next, channel, whitelist) {
     var self = this;
     app.helper.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
@@ -711,12 +713,12 @@ Pod.prototype = {
       }
     });
   },
-  
+
   _httpGet: function(url, cb, headers) {
     var headerStruct = {
-      'User-Agent': 'request'      
+      'User-Agent': 'request'
     };
-    
+
     if (headers) {
       for (var k in headers) {
         if (headers.hasOwnProperty(k)) {
@@ -724,7 +726,7 @@ Pod.prototype = {
         }
       }
     }
-    
+
     request(
     {
       url : url,
@@ -743,9 +745,9 @@ Pod.prototype = {
 
   _httpPost: function(url, postData, next, headers) {
     var headerStruct = {
-      'User-Agent': 'request'      
+      'User-Agent': 'request'
     };
-    
+
     if (headers) {
       for (var k in headers) {
         if (headers.hasOwnProperty(k)) {
@@ -830,16 +832,16 @@ Pod.prototype = {
       dDir += channel.owner_id + '/';
     }
     dDir += this._name + '/' + action + '/' + channel.id + '/';
-   
+
     app.helper.mkdir_p(dDir, 0777 , function(err, path) {
       if (err) {
         self.log(err.message, channel, 'error');
       }
-      if (next) {          
+      if (next) {
         next(err, path);
       }
     });
-    
+
 
     return dDir;
   },
@@ -852,7 +854,7 @@ Pod.prototype = {
       dDir += channel.owner_id + '/';
     }
     dDir += this._name + '/' + action + '/' + channel.id + '/';
-    
+
     app.helper.rmdir(dDir, function(err) {
       if (err) {
         self.log(err.message, channel, 'error');
@@ -862,7 +864,44 @@ Pod.prototype = {
       }
     });
   },
+  
+  _expireChannelDir : function(pfx, channel, action, ageDays) {
+    var self = this,
+      dDir = pfx + '/channels/';
+      maxTime = (new Date()).getTime() - (ageDays * 24 * 60 * 60 * 1000);
 
+    if (undefined != channel.owner_id) {
+      dDir += channel.owner_id + '/';
+    }
+    dDir += this._name + '/' + action + '/' + channel.id + '/';
+
+    fs.readdir(dDir, function(err, files) {
+      if (err) {
+        self.log(err, channel, 'error');
+      } else {
+        for (var f = 0; f < files.length; f++) {
+          (function(fileName) {
+            fs.stat(fileName, function(err, stat) {
+              if (err) {
+                self.log(err, channel, 'error');
+              } else {
+                if (stat.mtime.getTime() < maxTime) {                
+                  fs.unlink(fileName, function(err) {
+                    if (err) {
+                      self.log(err, channel, 'error');
+                    }
+                  });
+                  
+                }
+              }
+            });
+          })(dDir + files[f]);
+        }
+      }
+    });
+  },
+
+  // -------- Data Directory interfaces
 
   // returns the file based data dir for this pod
   getDataDir: function(channel, action, next) {
@@ -874,14 +913,21 @@ Pod.prototype = {
     return this._rmChannelDir(DATA_DIR, channel, action, next);
   },
 
+  // -------- CDN Directory interfaces
+
   // gets public cdn
   getCDNDir : function(channel, action, next) {
     return this._createChannelDir(CDN_DIR, channel, action, next);
   },
-  
+
   // removes cdn dir and all of its contents
   rmCDNDir : function(channel, action, next) {
     return this._rmChannelDir(CDN_DIR, channel, action, next);
+  },
+
+  // removes cdn data by age
+  expireCDNDir : function(channel, action, ageDays) {
+    return this._expireChannelDir(CDN_DIR, channel, action, ageDays);
   },
 
   // -------------------------------------------------------------------------
@@ -966,13 +1012,13 @@ Pod.prototype = {
      */
   invoke: function(action, channel, imports, sysImports, contentParts, next) {
     var self = this;
-    
+
     if (!contentParts) {
       contentParts = {
         _files : []
       }
     }
-    
+
     this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
       if (err) {
         self.log(err, channel, 'error');
@@ -1196,7 +1242,7 @@ Pod.prototype = {
         }
       }
     }
-    
+
     return schema;
   },
 
@@ -1204,7 +1250,7 @@ Pod.prototype = {
     if (undefined !== srcObj[key] && '' !== srcObj[key]) {
       dstObj[key] = srcObj[key];
     }
-  }  
+  }
 }
 
 module.exports = Pod;
