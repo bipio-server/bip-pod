@@ -169,17 +169,17 @@ Pod.prototype = {
   registerCron : function(id, period, callback) {
     var self = this;
 
-/*
-    setTimeout(function() {
-      callback.apply(self);
-    }, 2000);
-    return;
-*/
     if (this.$resource.cron) {
       if (!this.crons[id]) {
-        this.crons[id] = new this.$resource.cron.CronJob(period, function() {
-          callback.apply(self);
-        });
+        app.logmessage('POD:Registering Cron:' + self._name + ':' + id);
+          self.crons[id] = new self.$resource.cron.CronJob(
+            period, 
+            callback, 
+            null, 
+            true, 
+            GLOBAL.CFG.timezone
+          );
+      
       }
     }
   },
