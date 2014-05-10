@@ -263,7 +263,8 @@ Pod.prototype = {
         // upsert oAuth document
         var filter = {
           owner_id : ownerId,
-          type : this._authType
+          type : this._authType,
+          auth_provider : podName
         };
 
         var struct = {
@@ -734,11 +735,18 @@ Pod.prototype = {
       headers: headerStruct
     },
     function(error, res, body) {
-      if (!error && -1 !== res.headers['content-type'].indexOf('json')) {
-        body = JSON.parse(body);
+      if (404 === res.statusCode) {
+        cb('Not Found', body, res.headers, res.statusCode);
+      } else {
+        if (!error && -1 !== res.headers['content-type'].indexOf('json')) {
+          try {
+            body = JSON.parse(body);
+          } catch (e) {
+            error = e.message;
+          }
+        }
+        cb(error, body, res.headers, res.statusCode);
       }
-
-      cb(error, body, res.headers, res.statusCode);
     }
     );
   },
