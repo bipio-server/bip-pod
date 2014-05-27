@@ -461,11 +461,9 @@ Pod.prototype = {
     this._oAuthRegistered = true;
     passport.use(new strategy(
       localConfig,
-      //function(req, accessToken, refreshToken, params, profile, done) {
-      function() {
+      function(req, accessToken, refreshToken, params, profile, done) {
         // maintain scope
-        //self.oAuthBinder(req, accessToken, refreshToken, params, profile, done);
-        self.oAuthBinder.apply(self, arguments);
+        self.oAuthBinder(req, accessToken, refreshToken, params, profile, done);
       }));
   },
 
