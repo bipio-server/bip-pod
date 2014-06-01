@@ -249,26 +249,24 @@ Pod.prototype = {
 
 
   issuerTokenRPC : function(podName, method, req, res) {
-    var ok = false, ownerId;
+    var ok = false, accountId = req.remoteUser.user.id;
     res.contentType(DEFS.CONTENTTYPE_JSON);
 
     if (this._authType == 'issuer_token') {
-      ownerId = req.remoteUser.user.id;
-
       if (method == 'set') {
-        app.logmessage('[' + ownerId + '] ISSUER_TOKEN ' + this._name + ' SET' );
+        app.logmessage('[' + accountId + '] ISSUER_TOKEN ' + this._name + ' SET' );
 
         var self = this;
 
         // upsert oAuth document
         var filter = {
-          owner_id : ownerId,
+          owner_id : accountId,
           type : this._authType,
           auth_provider : podName
         };
 
         var struct = {
-          owner_id : ownerId,
+          owner_id : accountId,
           username : req.query.username,
           password : req.query.password,
           type : this._authType,
@@ -309,6 +307,22 @@ Pod.prototype = {
           }
         });
 
+        ok = true;
+      } else if (method == 'deauth') {
+        var filter = {
+          owner_id : accountId,
+          type : 'issuer_token',
+          auth_provider : podName
+        }
+
+        this._dao.removeFilter('account_auth', filter, function(err) {
+          if (!err) {
+            res.jsonp(200, {});
+          } else {
+            app.logmessage(err, 'error');
+            res.jsonp(500, {});
+          }
+        });
         ok = true;
       }
     }
@@ -482,12 +496,14 @@ Pod.prototype = {
 
   oAuthBinder: function(req, accessToken, refreshToken, params, profile, done) {
     var self = this,
+    modelName = 'account_auth',
     accountInfo = req.remoteUser,
     accountId = accountInfo.getId();
 
     // upsert oAuth document
     var filter = {
       owner_id : accountId,
+      type : 'oauth',
       oauth_provider : this._name
     };
 
@@ -496,7 +512,7 @@ Pod.prototype = {
       password : accessToken,
       type : 'oauth',
       oauth_provider : this._name,
-      oauth_refresh : refreshToken,
+      oauth_refresh : refreshToken || '',
       oauth_profile : profile._json ? profile._json : profile
     };
 
@@ -504,18 +520,31 @@ Pod.prototype = {
       struct.oauth_token_expire = params.expires_in;
     }
 
-    var model = this._dao.modelFactory('account_auth', struct);
+    var model = this._dao.modelFactory(modelName, struct);
 
     // @todo upserts don't work with mongoose middleware
     // create a dao helper for filter -> model upsert.
-    this._dao.find('account_auth', filter, function(err, result) {
+    this._dao.find(modelName, filter, function(err, result) {
       var next = done;
       if (err) {
         done( err, req.remoteUser );
       } else {
-        self._dao.create(model, function(err, result) {
-          next( err, accountInfo );
-        });
+        if (result) {
+         
+          console.log(struct);
+          self._dao.updateProperties(
+            modelName,
+            result.id, 
+            struct,
+            function(err) {
+              next( err, accountInfo );
+            }
+          );
+        } else {
+          self._dao.create(model, function(err, result) {
+            next( err, accountInfo );
+          });
+        }
       }
     });
   },
