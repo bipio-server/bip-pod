@@ -352,6 +352,7 @@ Pod.prototype = {
       } else if (method == 'cb') {
         app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
         passport[authMethod](podName, function(err, user) {
+
           // @todo - decouple from site.
           if (err) {
             app.logmessage(err, 'error');
@@ -361,6 +362,10 @@ Pod.prototype = {
             app.logmessage('[' + accountId + '] OAUTH ' + podName + ' CANCELLED' );
             res.redirect(CFG.website_public + '/emitter/oauthcb?status=denied&provider=' + podName);
 
+          } else if (!user) {
+            app.logmessage('[' + accountId + '] OAUTH ' + podName + ' UNKNOWN ERROR' );
+            res.redirect(CFG.website_public + '/emitter/oauthcb?status=denied&provider=' + podName);
+            
           } else {
             app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTHORIZED' );
             // install singletons
@@ -475,7 +480,7 @@ Pod.prototype = {
     this._oAuthRegistered = true;
     passport.use(new strategy(
       localConfig,
-      function(req, accessToken, refreshToken, params, profile, done) {
+      function(req, accessToken, refreshToken, params, profile, done) {        
         // maintain scope
         self.oAuthBinder(req, accessToken, refreshToken, params, profile, done);
       }));
@@ -530,8 +535,7 @@ Pod.prototype = {
         done( err, req.remoteUser );
       } else {
         if (result) {
-         
-          console.log(struct);
+
           self._dao.updateProperties(
             modelName,
             result.id, 
