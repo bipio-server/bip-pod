@@ -142,6 +142,7 @@ Pod.prototype = {
     this.$resource.expireCDNDir = this.expireCDNDir;
     this.$resource._httpGet = this._httpGet;
     this.$resource._httpPost = this._httpPost;
+    this.$resource._httpPut = this._httpPut;
     this.$resource._httpStreamToFile = this._httpStreamToFile;
     this.$resource._isVisibleHost = this._isVisibleHost;
 
@@ -340,7 +341,8 @@ Pod.prototype = {
     authMethod = (this._oAuthMethod) ? this._oAuthMethod : 'authorize',
     self = this,
     accountInfo = req.remoteUser,
-    accountId = accountInfo.getId();
+    accountId = accountInfo.getId(),
+    emitterHost = CFG.site_emitter || CFG.website_public;
 
     if (false !== this._oAuthRegistered) {
       // invoke the passport oauth handler
@@ -356,21 +358,21 @@ Pod.prototype = {
           // @todo - decouple from site.
           if (err) {
             app.logmessage(err, 'error');
-            res.redirect(CFG.website_public + '/emitter/oauthcb?status=denied&provider=' + podName);
+            res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
 
           } else if (!user && req.query.error_reason && req.query.error_reason == 'user_denied') {
             app.logmessage('[' + accountId + '] OAUTH ' + podName + ' CANCELLED' );
-            res.redirect(CFG.website_public + '/emitter/oauthcb?status=denied&provider=' + podName);
+            res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
 
           } else if (!user) {
             app.logmessage('[' + accountId + '] OAUTH ' + podName + ' UNKNOWN ERROR' );
-            res.redirect(CFG.website_public + '/emitter/oauthcb?status=denied&provider=' + podName);
+            res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
             
           } else {
             app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTHORIZED' );
             // install singletons
             self.autoInstall(accountInfo);
-            res.redirect(CFG.website_public + '/emitter/oauthcb?status=accepted&provider=' + podName);
+            res.redirect(emitterHost + '/emitter/oauthcb?status=accepted&provider=' + podName);
           }
         })(req, res, function(err) {
           res.send(500);
@@ -805,6 +807,34 @@ Pod.prototype = {
       next(error, body, res.headers);
     }
     );
+  },
+
+  _httpPut: function(url, putData, next, headers) {
+    var headerStruct = {
+      'User-Agent': 'request'
+    },
+    params = {
+      url : url,
+      method : 'PUT'
+    };
+
+    if (headers) {
+      for (var k in headers) {
+        if (headers.hasOwnProperty(k)) {
+          headerStruct[k] = headers[k];
+        }
+      }
+    }
+
+    params.headers = headerStruct;
+    
+    if (putData) {
+      params.json = putData;
+    }
+
+    request(params, function(error, res, body) {
+      next(error, body, res.headers);
+    });
   },
 
   /**
