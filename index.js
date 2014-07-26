@@ -269,6 +269,7 @@ Pod.prototype = {
         var struct = {
           owner_id : accountId,
           username : req.query.username,
+          key : req.query.key,
           password : req.query.password,
           type : this._authType,
           auth_provider : podName
@@ -499,6 +500,18 @@ Pod.prototype = {
     }
 
     this._dao.removeFilter('account_auth', filter, next);
+    this._dao.updateColumn(
+      'channel', 
+      {
+        owner_id : ownerid,
+        action : {
+          $regex : podName + '\.*'
+        }
+      },
+      {
+        _available : false
+      }      
+    );
   },
 
   oAuthBinder: function(req, accessToken, refreshToken, params, profile, done) {
@@ -624,7 +637,7 @@ Pod.prototype = {
         var authRecord;
         if (!err && result) {
           authRecord = self._dao.modelFactory('account_auth', result);
-          next(false, authRecord.getUsername(), authRecord.getPassword());
+          next(false, authRecord.getUsername(), authRecord.getPassword(), authRecord.getKey());
         } else {
           if (err) {
             app.logmessage(err, 'error');
