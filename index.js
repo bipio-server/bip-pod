@@ -174,13 +174,13 @@ Pod.prototype = {
       if (!this.crons[id]) {
         app.logmessage('POD:Registering Cron:' + self._name + ':' + id);
           self.crons[id] = new self.$resource.cron.CronJob(
-            period, 
-            callback, 
-            null, 
-            true, 
+            period,
+            callback,
+            null,
+            true,
             GLOBAL.CFG.timezone
           );
-      
+
       }
     }
   },
@@ -368,7 +368,7 @@ Pod.prototype = {
           } else if (!user) {
             app.logmessage('[' + accountId + '] OAUTH ' + podName + ' UNKNOWN ERROR' );
             res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
-            
+
           } else {
             app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTHORIZED' );
             // install singletons
@@ -483,7 +483,7 @@ Pod.prototype = {
     this._oAuthRegistered = true;
     passport.use(new strategy(
       localConfig,
-      function(req, accessToken, refreshToken, params, profile, done) {        
+      function(req, accessToken, refreshToken, params, profile, done) {
         // maintain scope
         self.oAuthBinder(req, accessToken, refreshToken, params, profile, done);
       }));
@@ -501,7 +501,7 @@ Pod.prototype = {
 
     this._dao.removeFilter('account_auth', filter, next);
     this._dao.updateColumn(
-      'channel', 
+      'channel',
       {
         owner_id : ownerid,
         action : {
@@ -510,7 +510,7 @@ Pod.prototype = {
       },
       {
         _available : false
-      }      
+      }
     );
   },
 
@@ -553,7 +553,7 @@ Pod.prototype = {
 
           self._dao.updateProperties(
             modelName,
-            result.id, 
+            result.id,
             struct,
             function(err) {
               next( err, accountInfo );
@@ -840,7 +840,7 @@ Pod.prototype = {
     }
 
     params.headers = headerStruct;
-    
+
     if (putData) {
       params.json = putData;
     }
@@ -946,7 +946,7 @@ Pod.prototype = {
       }
     });
   },
-  
+
   _expireChannelDir : function(pfx, channel, action, ageDays) {
     var self = this,
       dDir = pfx + '/channels/';
@@ -967,13 +967,13 @@ Pod.prototype = {
               if (err) {
                 self.log(err, channel, 'error');
               } else {
-                if (stat.mtime.getTime() < maxTime) {                
+                if (stat.mtime.getTime() < maxTime) {
                   fs.unlink(fileName, function(err) {
                     if (err) {
                       self.log(err, channel, 'error');
                     }
                   });
-                  
+
                 }
               }
             });
@@ -1114,8 +1114,28 @@ Pod.prototype = {
   * to properly authenticate data etc.
   */
   rpc : function(action, method, sysImports, options, channel, req, res) {
-    if (this.actions[action] && this.actions[action].rpc) {
-      this.actions[action].rpc(method, sysImports, options, channel, req, res);
+    var self = this;
+
+    if (this.actions[action] && (this.actions[action].rpc || 'invoke' === method)) {
+      if ('invoke' === method) {
+        var imports = app.helper.pasteurize((req.method === 'GET') ? req.query : req.body);
+
+        // @todo add files support
+        this.actions[action].invoke(imports, channel, sysImports, [], function(err, exports) {
+          if (err) {
+            self.log(err, channel, 'error');
+          }
+
+          res.contentType(DEFS.CONTENTTYPE_JSON);
+          if (err) {
+            res.send(err, 500);
+          } else {
+            res.send(exports);
+          }
+        });
+      } else {
+        this.actions[action].rpc(method, sysImports, options, channel, req, res);
+      }
     } else {
       res.send(404);
     }
