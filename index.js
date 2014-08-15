@@ -3,8 +3,8 @@
  * The Bipio Pod Bridge.  Provides basic system resources, auth helpers,
  * setup, invoke and data sources for actions within the pod.
  *
- * @author Michael Pearson <michael@cloudspark.com.au>
- * Copyright (c) 2010-2013 CloudSpark pty ltd http://www.cloudspark.com.au
+ * @author Michael Pearson <github@m.bip.io>
+ * Copyright (c) 2010-2013 Michael Pearson https://github.com/mjpearson
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
- * A Bipio Commercial OEM License may be obtained via enquiries@cloudspark.com.au
+ * A Bipio Commercial OEM License may be obtained via support@beta.bip.io
  */
 var passport = require('passport'),
 request = require('request'),
