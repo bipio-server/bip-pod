@@ -34,8 +34,8 @@ cron = require('cron');
 // constructor
 function Pod(metadata, init) {
   this._name = metadata.name || 'Anonymous Pod';
-  this._description = metadata.description;
-  this._description_long = metadata.description_long;
+  this._title = (metadata.title || metadata.description);
+  this._description = (metadata.description || metadata.description_long);
   this._authType = metadata.authType || 'none';
   this._authMap = metadata.authMap || null;
   this._config = metadata.config || null;
@@ -189,8 +189,8 @@ Pod.prototype = {
   buildSchema : function(action) {
     var actionSchema = action.getSchema();
     return {
-      'description' : action.description,
-      'description_long' : action.description_long,
+      'title' : (action.title || action.description),
+      'description' : (action.description || action.description_long),
       'auth_required' : action.auth_required,
       'trigger' : action.trigger,
       'singleton' : action.singleton,
@@ -1275,7 +1275,7 @@ Pod.prototype = {
             name : s.description,
             action : this._name + '.' + key,
             config : {}, // singletons don't have config
-            note : (s.description_long || s.description) + ' (Automatically Installed)'
+            note : (s.title || s.description || s.description_long) + ' (Automatically Installed)'
           };
 
           // don't care about catching duplicates right now
@@ -1306,8 +1306,8 @@ Pod.prototype = {
     var self = this,
     schema = {
       'name' : this._name,
+      'title' : this._title,
       'description' : this._description,
-      'description_long' : this._description_long,
       'icon' : CFG.cdn_public + '/pods/' + this._name + '.png',
       'auth' : {
         type : this._authType,
