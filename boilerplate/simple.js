@@ -22,8 +22,8 @@
 
 function Simple(podConfig) {
   this.name = 'simple'; // action name (channel action suffix - "action: boilerplate.simple")
-  this.description = 'short description', // short description
-  this.description_long = 'the long description', // long description
+  this.title = 'short description', // short description
+  this.description = 'the long description', // long description
   this.trigger = false; // this action can trigger
   this.singleton = false; // 1 instance per account (can auto install)
   this.auto = false; // automatically install this action

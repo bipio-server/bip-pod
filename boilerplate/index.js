@@ -21,8 +21,8 @@
 var Pod = require('bip-pod'),
     Boilerplate = new Pod({
         name : 'boilerplate', // pod name (action prefix)
-        description : 'Boilerplate', // short description
-        description_long : 'A basic template for creating pods of your own' // long description
+        title : 'Boilerplate', // short description
+        description : 'A basic template for creating pods of your own' // long description
     });
 
 // Include any actions
