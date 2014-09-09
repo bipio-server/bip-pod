@@ -1,6 +1,6 @@
 {
   "name": "bip-pod",
-  "version": "0.2.28",
+  "version": "0.2.29",
   "author" : "Michael Pearson",
   "description": "Bipio's Pod bridge and testing spindle",
   "keywords": [

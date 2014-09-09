@@ -31,9 +31,22 @@ uuid = require('node-uuid'),
 mime = require('mime'),
 cron = require('cron');
 
+var requiredMeta = [
+  'name',
+//  'title',
+  'description'
+];
+
 // constructor
 function Pod(metadata, init) {
-  this._name = metadata.name || 'Anonymous Pod';
+
+  for (var i = 0; i < requiredMeta.length; i++) {
+    if (!metadata[requiredMeta[i]]) {
+      throw new Error('Pod is missing required "' + requiredMeta[i] + '" metadata');
+    }
+  }
+
+  this._name = metadata.name;
   this._title = (metadata.title || metadata.description);
   this._description = (metadata.description || metadata.description_long);
   this._authType = metadata.authType || 'none';
