@@ -200,27 +200,34 @@ Pod.prototype = {
 
   // normalizes the schema for an action
   buildSchema : function(action) {
-    var actionSchema = action.getSchema();
-    return {
-      'title' : (action.title || action.description),
-      'description' : (action.description || action.description_long),
-      'auth_required' : action.auth_required,
-      'trigger' : action.trigger,
-      'singleton' : action.singleton,
-      'auto' : action.auto,
-      'config' : actionSchema.config || {
-        properties : {},
-        definitions : {}
-      },
-      'renderers' : actionSchema.renderers || {},
-      'defaults' : actionSchema.defaults || {},
-      'exports' : actionSchema.exports || {
-        properties : {}
-      },
-      'imports' : actionSchema.imports || {
-        properties : {}
-      }
-    };
+    var actionSchema = action.getSchema(),
+      schema = {
+        'title' : (action.title || action.description),
+        'description' : (action.description || action.description_long),
+        'auth_required' : action.auth_required,
+        'trigger' : action.trigger,
+        'singleton' : action.singleton,
+        'auto' : action.auto,
+        'config' : actionSchema.config || {
+          properties : {},
+          definitions : {}
+        },
+        'renderers' : actionSchema.renderers || {},
+        'defaults' : actionSchema.defaults || {},
+        'exports' : actionSchema.exports || {
+          properties : {}
+        },
+        'imports' : actionSchema.imports || {
+          properties : {}
+        }
+      };
+
+    schema.config['$schema'] =
+    schema.imports['$schema'] =
+    schema.exports['$schema'] = "http://json-schema.org/draft-04/schema#";
+
+    return schema;
+
   },
 
   /**
