@@ -811,7 +811,7 @@ Pod.prototype = {
             error = e.message;
           }
         }
-        cb(error, body, res.headers, res.statusCode);
+        cb(error, body, res ? res.headers : null, res ? res.statusCode : null);
       }
     }
     );
@@ -837,7 +837,7 @@ Pod.prototype = {
       headers: headerStruct
     },
     function(error, res, body) {
-      next(error, body, res.headers);
+      next(error, body, res ? res.headers : null);
     }
     );
   },
@@ -866,7 +866,7 @@ Pod.prototype = {
     }
 
     request(params, function(error, res, body) {
-      next(error, body, res.headers);
+      next(error, body, res ? res.headers : null);
     });
   },
 
