@@ -1292,10 +1292,10 @@ Pod.prototype = {
         s = this._schemas[key];
         if (s.singleton || s.auto) {
           channelTemplate = {
-            name : s.description,
+            name : s.title,
             action : this._name + '.' + key,
             config : {}, // singletons don't have config
-            note : (s.title || s.description || s.description_long) + ' (Automatically Installed)'
+            note : s.description
           };
 
           // don't care about catching duplicates right now
