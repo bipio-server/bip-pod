@@ -269,6 +269,10 @@ Pod.prototype = {
   // ------------------------------ 3RD PARTY AUTHENTICATION HELPERS
 
 
+  testCredentials : function(struct, next) {
+    next(false);
+  },
+
   issuerTokenRPC : function(podName, method, req, res) {
     var ok = false, accountId = req.remoteUser.user.id;
     res.contentType(DEFS.CONTENTTYPE_JSON);
@@ -295,37 +299,45 @@ Pod.prototype = {
           auth_provider : podName
         };
 
-        var model = this._dao.modelFactory('account_auth', struct);
-
-        // @todo upserts don't work with mongoose middleware
-        // create a dao helper for filter -> model upsert.
-        this._dao.find('account_auth', filter, function(err, result) {
+        self.testCredentials(struct, function(err, status) {
           if (err) {
-            app.logmessage(err, 'error');
-            res.send(500);
+            res.jsonp(status || 401, { "message" : err.toString() });
+
           } else {
-            // update
-            if (result) {
-              self._dao.update('account_auth', result.id, struct, function(err, result) {
-                if (err) {
-                  app.logmessage(err, 'error');
-                  res.jsonp(500, {});
+            var model = self._dao.modelFactory('account_auth', struct);
+
+            // @todo upserts don't work with mongoose middleware
+            // create a dao helper for filter -> model upsert.
+            self._dao.find('account_auth', filter, function(err, result) {
+              if (err) {
+                app.logmessage(err, 'error');
+                res.send(500);
+              } else {
+                // update
+                if (result) {
+                  self._dao.update('account_auth', result.id, struct, function(err, result) {
+                    if (err) {
+                      app.logmessage(err, 'error');
+                      res.jsonp(500, {});
+                    } else {
+                      res.jsonp(200, {});
+                    }
+                  }, req.remoteUser);
                 } else {
-                  res.jsonp(200, {});
+                  // create
+                  self._dao.create(model, function(err, result) {
+                    if (err) {
+                      app.logmessage(err, 'error');
+                      res.jsonp(500, {});
+                    } else {
+                      self.autoInstall(req.remoteUser);
+                      res.jsonp(200, {});
+                    }
+                  }, req.remoteUser);
                 }
-              }, req.remoteUser);
-            } else {
-              // create
-              self._dao.create(model, function(err, result) {
-                if (err) {
-                  app.logmessage(err, 'error');
-                  res.jsonp(500, {});
-                } else {
-                  self.autoInstall(req.remoteUser);
-                  res.jsonp(200, {});
-                }
-              }, req.remoteUser);
-            }
+              }
+            });
+
           }
         });
 
