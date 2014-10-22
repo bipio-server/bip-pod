@@ -1133,12 +1133,16 @@ Pod.prototype = {
       }
     }
 
-    this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
-      if (err) {
-        self.log(err, channel, 'error');
-      }
-      next.apply(self, arguments);
-    });
+    try {
+      this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
+        if (err) {
+          self.log(err, channel, 'error');
+        }
+        next.apply(self, arguments);
+      });
+    } catch (e) {
+      self.log(e, channel, 'error');
+    }
   },
 
   /**
