@@ -208,6 +208,7 @@ Pod.prototype = {
         'auth_required' : action.auth_required,
         'trigger' : action.trigger,
         'singleton' : action.singleton,
+        'socket' : action.socket,
         'auto' : action.auto,
         'config' : actionSchema.config || {
           properties : {},
@@ -759,6 +760,13 @@ Pod.prototype = {
       );
   },
 
+  isSocket : function(action) {
+    return (this._schemas[action].socket ?
+      this._schemas[action].socket :
+      false
+      );
+  },
+
   getExports : function(action) {
     return this._schemas[action].exports;
   },
@@ -906,7 +914,7 @@ Pod.prototype = {
                   if (err) {
                     app.logmessage(err, 'error');
                     next(true);
-                  } 
+                  }
                   else {
                     app.logmessage( self._name + ' CACHED, skipping [' + outFile + ']');
                     fileStruct.size = stats.size;
