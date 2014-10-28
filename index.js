@@ -63,6 +63,8 @@ function Pod(metadata, init) {
 
   this._oAuthRegistered = false;
   this._passportStrategy = metadata.passportStrategy;
+  this._passportStrategyName = '';
+
   this._sysImports = null;
   this._schemas = {}; // import configs and schema; keyed to channel action
   this._importContainer = {};
@@ -383,12 +385,12 @@ Pod.prototype = {
       // invoke the passport oauth handler
       if (method == 'auth') {
         app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
-        passport[authMethod](podName, this._oAuthConfig)(req, res);
+        passport[authMethod](this._passportStrategyName, this._oAuthConfig)(req, res);
         ok = true;
 
       } else if (method == 'cb') {
         app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
-        passport[authMethod](podName, function(err, user) {
+        passport[authMethod](this._passportStrategyName, function(err, user) {
 
           // @todo - decouple from site.
           if (err) {
@@ -500,7 +502,9 @@ Pod.prototype = {
       callbackURL : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this._name + '/cb',
       failureRedirect : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this._name + '/denied',
       passReqToCallback: true
-    }, self = this;
+    },
+    passportStrategy,
+    self = this;
 
     for (key in config) {
       localConfig[key] = config[key];
@@ -515,12 +519,17 @@ Pod.prototype = {
     }
 
     this._oAuthRegistered = true;
-    passport.use(new strategy(
+
+    passportStrategy = new strategy(
       localConfig,
       function(req, accessToken, refreshToken, params, profile, done) {
         // maintain scope
         self.oAuthBinder(req, accessToken, refreshToken, params, profile, done);
-      }));
+      });
+
+    this._passportStrategyName = passportStrategy.name;
+
+    passport.use(passportStrategy);
   },
 
   /**
