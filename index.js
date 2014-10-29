@@ -57,6 +57,8 @@ function Pod(metadata, init) {
   this._oAuth = null;
   this._podInit = init;
 
+  this._trackDuplicates = metadata.trackDuplicates || false;
+
   if (metadata.oAuthRefresh) {
     this._oAuthRefresh = metadata.oAuthRefresh;
   }
@@ -161,7 +163,18 @@ Pod.prototype = {
     this.$resource._httpStreamToFile = this._httpStreamToFile;
     this.$resource._httpStreamToCDN = this._httpStreamToCDN;
     this.$resource._isVisibleHost = this._isVisibleHost;
-    this.$resource.dupFilter = this.dupFilter;
+
+    // create pod tracking container for duplicate entities
+    if (this._trackDuplicates) {
+
+      var podDupTracker = require('./models/dup');
+
+      podDupTracker.entityName = this.getDataSourceName(podDupTracker.entityName);
+      extend(true, podDupTracker, Object.create(dao.getModelPrototype()));
+      this._dao.registerModel(podDupTracker);
+
+      this.$resource.dupFilter = this.dupFilter;
+    }
 
     // give the pod a scheduler
     if (app.isMaster) {
@@ -1346,6 +1359,7 @@ Pod.prototype = {
 
   // duplicate filter (type coerced)
   // *** NOTE : Requires a 'dup' model for Pod
+  // scoped to $resource (please fix)
   dupFilter : function(obj, key, channel, sysImports, next) {
     var self = this,
       modelName = this.getDataSourceName('dup'),
@@ -1370,7 +1384,6 @@ Pod.prototype = {
       } else {
         if (!result || (result && result.value != objVal)) {
           self.dao.upsert(modelName, filter, props, function(err, result) {
-//            console.log(obj);
             next(err, obj);
           });
         }

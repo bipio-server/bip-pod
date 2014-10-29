@@ -1,6 +1,6 @@
 {
   "name": "bip-pod",
-  "version": "0.2.37",
+  "version": "0.2.38",
   "author" : "Michael Pearson",
   "description": "Bipio's Pod bridge",
   "keywords": [
