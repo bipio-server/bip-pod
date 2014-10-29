@@ -161,6 +161,7 @@ Pod.prototype = {
     this.$resource._httpStreamToFile = this._httpStreamToFile;
     this.$resource._httpStreamToCDN = this._httpStreamToCDN;
     this.$resource._isVisibleHost = this._isVisibleHost;
+    this.$resource.dupFilter = this.dupFilter;
 
     // give the pod a scheduler
     if (app.isMaster) {
@@ -1284,8 +1285,8 @@ Pod.prototype = {
   },
 
   /**
-     * Creates a trigger tracking record
-     */
+    * Creates a trigger tracking record
+    */
   trackingStart : function(channel, accountInfo, fromNow, next) {
     var nowTime = app.helper.nowUTCSeconds(),
     trackingStruct = {
@@ -1341,6 +1342,40 @@ Pod.prototype = {
     };
 
     this._dao.removeFilter('channel_pod_tracking', filter, next);
+  },
+
+  // duplicate filter (type coerced)
+  // *** NOTE : Requires a 'dup' model for Pod
+  dupFilter : function(obj, key, channel, sysImports, next) {
+    var self = this,
+      modelName = this.getDataSourceName('dup'),
+      objVal = app.helper.jsonPath(obj, key),
+      filter = {
+        owner_id : channel.owner_id,
+        channel_id : channel.id,
+        bip_id : sysImports.bip.id,
+        value : objVal
+      },
+      props = {
+        last_update : app.helper.nowUTCSeconds(),
+        owner_id : channel.owner_id,
+        channel_id : channel.id,
+        bip_id : sysImports.bip.id,
+        value : objVal
+      };
+
+    self.dao.find(modelName, filter, function(err, result) {
+      if (err) {
+        next(err);
+      } else {
+        if (!result || (result && result.value != objVal)) {
+          self.dao.upsert(modelName, filter, props, function(err, result) {
+//            console.log(obj);
+            next(err, obj);
+          });
+        }
+      }
+    });
   },
 
   /**
