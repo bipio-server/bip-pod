@@ -1242,16 +1242,36 @@ Pod.prototype = {
     }
   },
 
+  // tries to drop any duplicates from db
+  _dupTeardown : function(channel, next) {
+    var filter = {
+        channel_id : channel.id,
+        owner_id : channel.owner_id
+      },
+      modelName = this.getDataSourceName('dup');
+
+    this._dao.removeFilter(modelName, filter, next);
+  },
+
   /**
-     * Runs the teardown for a pod action if one exists
-     *
-     *
-     *
-     */
+    * Runs the teardown for a pod action if one exists
+    */
   teardown : function(action, channel, accountInfo, next) {
+    var self = this;
     if (this.actions[action] && this.actions[action].teardown) {
-      this.actions[action].teardown(channel, accountInfo, next);
+      if (this._trackDuplicates) {
+        // confirm teardown and drop any dup tracking from database
+        this.actions[action].teardown(channel, accountInfo, function(err, modelName, result) {
+          next(err, modelName, result);
+          self._dupTeardown(channel);
+        });
+      } else {
+        this.actions[action].teardown(channel, accountInfo, next);
+      }
     } else {
+      if (this._trackDuplicates) {
+        self._dupTeardown(channel);
+      }
       next(false, 'channel', channel);
     }
   },
