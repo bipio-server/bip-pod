@@ -827,9 +827,14 @@ Pod.prototype = {
     });
   },
 
-  _httpGet: function(url, cb, headers) {
+  _httpGet: function(url, cb, headers, options) {
     var headerStruct = {
       'User-Agent': 'request'
+    };
+
+    var params = {
+      url : url,
+      method : 'GET'
     };
 
     if (headers) {
@@ -840,56 +845,69 @@ Pod.prototype = {
       }
     }
 
-    request(
-    {
-      url : url,
-      method : 'GET',
-      headers: headerStruct
-    },
-    function(error, res, body) {
-      if (-1 !== res.headers['content-type'].indexOf('json')) {
-        try {
-          body = JSON.parse(body);
-        } catch (e) {
-          error = e.message;
+    params.headers = headerStruct;
+
+    if (options) {
+      for (var k in options) {
+        if (options.hasOwnProperty(k)) {
+          params[k] = options[k];
         }
       }
-
-      if (404 === res.statusCode) {
-        cb('Not Found', body, res.headers, res.statusCode);
-      } else {
-        cb(error, body, res ? res.headers : null, res ? res.statusCode : null);
-      }
     }
+
+    request(params, function(error, res, body) {
+        if (-1 !== res.headers['content-type'].indexOf('json')) {
+          try {
+            body = JSON.parse(body);
+          } catch (e) {
+            error = e.message;
+          }
+        }
+
+        if (404 === res.statusCode) {
+          cb('Not Found', body, res.headers, res.statusCode);
+        } else {
+          cb(error, body, res ? res.headers : null, res ? res.statusCode : null);
+        }
+      }
     );
   },
 
-  _httpPost: function(url, postData, next, headers) {
+  _httpPost: function(url, postData, next, headers, options) {
     var headerStruct = {
       'User-Agent': 'request'
     };
 
-    if (headers) {
-      for (var k in headers) {
-        if (headers.hasOwnProperty(k)) {
-          headerStruct[k] = headers[k];
-        }
-      }
-    }
-
-    request({
+    var params = {
       url : url,
       method : 'POST',
-      json : postData,
-      headers: headerStruct
-    },
-    function(error, res, body) {
-      next(error, body, res ? res.headers : null);
+      json : postData
     }
-    );
+
+    if (headers) {
+      for (var k in headers) {
+        if (headers.hasOwnProperty(k)) {
+          headerStruct[k] = headers[k];
+        }
+      }
+    }
+
+    params.headers = headerStruct;
+
+    if (options) {
+      for (var k in options) {
+        if (options.hasOwnProperty(k)) {
+          params[k] = options[k];
+        }
+      }
+    }
+
+    request(params, function(error, res, body) {
+      next(error, body, res ? res.headers : null);
+    });
   },
 
-  _httpPut: function(url, putData, next, headers) {
+  _httpPut: function(url, putData, next, headers, options) {
     var headerStruct = {
       'User-Agent': 'request'
     },
@@ -897,6 +915,14 @@ Pod.prototype = {
       url : url,
       method : 'PUT'
     };
+
+    if (options) {
+      for (var k in options) {
+        if (options.hasOwnProperty(k)) {
+          params[k] = options[k];
+        }
+      }
+    }
 
     if (headers) {
       for (var k in headers) {
