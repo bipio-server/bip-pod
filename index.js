@@ -83,7 +83,7 @@ function Pod(metadata, init) {
 
 Pod.prototype = {
   getDataSourceName : function(dsName) {
-    return 'pod_' + this._name + '_' + dsName;
+    return 'pod_' + this._name.replace(/-/g, '_') + '_' + dsName;
   },
 
   /**
@@ -119,7 +119,6 @@ Pod.prototype = {
 
     // create pod tracking container for duplicate entities
     if (this._trackDuplicates) {
-
       var podDupTracker = app._.clone(require('./models/dup'));
 
       podDupTracker.entityName = this.getDataSourceName(podDupTracker.entityName);
@@ -165,7 +164,7 @@ Pod.prototype = {
     };
     this.$resource.log = this.log;
     this.$resource.getDataSourceName = function(dsName) {
-      return 'pod_' + self._name + '_' + dsName;
+      return 'pod_' + self._name.replace(/-/g, '_') + '_' + dsName;
     };
 
     this.$resource.getDataDir = this.getDataDir;
