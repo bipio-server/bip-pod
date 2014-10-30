@@ -116,6 +116,20 @@ Pod.prototype = {
     extend(true, tracker, Object.create(dao.getModelPrototype()));
     this._dao.registerModel(tracker);
 
+
+    // create pod tracking container for duplicate entities
+    if (this._trackDuplicates) {
+
+      var podDupTracker = app._.clone(require('./models/dup'));
+
+      podDupTracker.entityName = this.getDataSourceName(podDupTracker.entityName);
+      extend(true, podDupTracker, Object.create(dao.getModelPrototype()));
+
+      this._dao.registerModel(podDupTracker);
+
+      this.$resource.dupFilter = this.dupFilter;
+    }
+
     // register pod data sources
     for (var i = 0; i < dsi; i++) {
       dataSource = this._dataSources[i];
@@ -163,18 +177,6 @@ Pod.prototype = {
     this.$resource._httpStreamToFile = this._httpStreamToFile;
     this.$resource._httpStreamToCDN = this._httpStreamToCDN;
     this.$resource._isVisibleHost = this._isVisibleHost;
-
-    // create pod tracking container for duplicate entities
-    if (this._trackDuplicates) {
-
-      var podDupTracker = require('./models/dup');
-
-      podDupTracker.entityName = this.getDataSourceName(podDupTracker.entityName);
-      extend(true, podDupTracker, Object.create(dao.getModelPrototype()));
-      this._dao.registerModel(podDupTracker);
-
-      this.$resource.dupFilter = this.dupFilter;
-    }
 
     // give the pod a scheduler
     if (app.isMaster) {
@@ -845,16 +847,17 @@ Pod.prototype = {
       headers: headerStruct
     },
     function(error, res, body) {
+      if (-1 !== res.headers['content-type'].indexOf('json')) {
+        try {
+          body = JSON.parse(body);
+        } catch (e) {
+          error = e.message;
+        }
+      }
+
       if (404 === res.statusCode) {
         cb('Not Found', body, res.headers, res.statusCode);
       } else {
-        if (!error && -1 !== res.headers['content-type'].indexOf('json')) {
-          try {
-            body = JSON.parse(body);
-          } catch (e) {
-            error = e.message;
-          }
-        }
         cb(error, body, res ? res.headers : null, res ? res.statusCode : null);
       }
     }
