@@ -400,12 +400,13 @@ Pod.prototype = {
       // invoke the passport oauth handler
       if (method == 'auth') {
         app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
-        passport[authMethod](this._passportStrategyName, this._oAuthConfig)(req, res);
+
+        passport[authMethod](this._name, this._oAuthConfig)(req, res);
         ok = true;
 
       } else if (method == 'cb') {
         app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
-        passport[authMethod](this._passportStrategyName, function(err, user) {
+        passport[authMethod](this._name, function(err, user) {
 
           // @todo - decouple from site.
           if (err) {
@@ -542,7 +543,10 @@ Pod.prototype = {
         self.oAuthBinder(req, accessToken, refreshToken, params, profile, done);
       });
 
-    this._passportStrategyName = passportStrategy.name;
+    // set strategy name as the pod name
+    // this is for authing separate applications/pods
+    // with the same strategy
+    passportStrategy.name = this._name;
 
     passport.use(passportStrategy);
   },
