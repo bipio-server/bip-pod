@@ -1316,6 +1316,13 @@ Pod.prototype = {
         }
       }
 
+      // trim empty imports
+      for (var k in imports) {
+        if (imports.hasOwnProperty(k) && '' === imports[k]) {
+          delete imports[k];
+        }
+      }
+
       if (actionSchema.imports
         && actionSchema.imports.required
         && actionSchema.imports.required.length) {
