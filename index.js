@@ -1299,14 +1299,53 @@ Pod.prototype = {
     }
 
     try {
-      this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
-        if (err) {
-          self.log(err, channel, 'error');
+      // apply channel config defaults into imports, if required
+      // fields don't already exist
+      var actionSchema = this.getActionSchemas()[action],
+        haveRequiredFields = true,
+        missingFields = [],
+        errStr;
+
+      for (var k in channel.config) {
+        if (channel.config.hasOwnProperty(k)
+          && !imports[k]
+          && actionSchema.imports.required
+          && -1 !== actionSchema.imports.required.indexOf(k)) {
+
+          imports[k] = channel.config[k];
         }
-        next.apply(self, arguments);
-      });
+      }
+
+      if (actionSchema.imports
+        && actionSchema.imports.required
+        && actionSchema.imports.required.length) {
+
+        for (var i = 0; i < actionSchema.imports.required.length; i++) {
+          if (!imports[actionSchema.imports.required[i]]) {
+            haveRequiredFields = false;
+            missingFields.push(actionSchema.imports.required[i]);
+          }
+        }
+      }
+
+      if (haveRequiredFields) {
+        this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
+          if (err) {
+            self.log(err, channel, 'error');
+          }
+          next.apply(self, arguments);
+        });
+      } else {
+        errStr = 'Missing Required Field(s):' + missingFields.join();
+      }
+
     } catch (e) {
-      self.log(e, channel, 'error');
+      errStr = e.toString();
+    }
+
+    if (errStr) {
+     self.log(errStr, channel, 'error');
+     next.call(self, errStr);
     }
   },
 
