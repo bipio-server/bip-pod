@@ -170,11 +170,17 @@ Pod.prototype = {
     this.$resource.getDataDir = this.getDataDir;
     this.$resource.getCDNDir = this.getCDNDir;
     this.$resource.expireCDNDir = this.expireCDNDir;
+
     this.$resource._httpGet = this._httpGet;
     this.$resource._httpPost = this._httpPost;
     this.$resource._httpPut = this._httpPut;
     this.$resource._httpStreamToFile = this._httpStreamToFile;
-    this.$resource._httpStreamToCDN = this._httpStreamToCDN;
+
+    this.$resource.file = {
+      get : this._cdnFileGet,
+      save : this._cdnFileSave
+    }
+
     this.$resource._isVisibleHost = this._isVisibleHost;
 
     // give the pod a scheduler
@@ -211,7 +217,6 @@ Pod.prototype = {
             true,
             GLOBAL.CFG.timezone
           );
-
       }
     }
   },
@@ -247,6 +252,20 @@ Pod.prototype = {
 
     return schema;
 
+  },
+
+  _cdnFileSave : function(readableStream, filename, options, next) {
+    if ('function' === typeof persist) {
+      next = options;
+      options = {};
+    }
+  },
+
+  /**
+   * Returns a readable file stream
+   */
+  _cdnFileGet : function(fileStruct, next) {
+    next(false, fileStruct, fs.createReadStream(path.join(fileStruct.localpath)));
   },
 
   /**
@@ -946,87 +965,6 @@ Pod.prototype = {
     });
   },
 
-  _httpStreamToCDN : function(url, outFile, cb, exports, fileStruct) {
-    var self = this;
-    var tmpFileName = outFile.split("/")[outFile.split("/").length - 1]
-    var account = outFile.split("/")[6];
-    app.logmessage("account = " + account + "\noutFile = " + outFile + "\ntmpFileName = " + tmpFileName);
-
-    //check for existence of file on FS
-    fs.exists(outFile, function(exists) {
-      //if file exists on FS
-      if (exists) {
-        //check for container's existence on CDN
-        app.cdn.container.find(account, function(err, container){
-          //if container exists
-          if (container) {
-            //check for file existence in container
-            app.cdn.file.find(container.name, tmpFileName, function(err, file){
-              //if file exists
-              if (file) {
-                //move on
-                fs.stat(outFile, function(err, stats) {
-                  if (err) {
-                    app.logmessage(err, 'error');
-                    next(true);
-                  }
-                  else {
-                    app.logmessage( self._name + ' CACHED, skipping [' + outFile + ']');
-                    fileStruct.size = stats.size;
-                    cb(false, exports, fileStruct);
-                  }
-                });
-              }
-              //if file doesn't exist
-              if (err) {
-                //upload file
-                self.uploadToCDN(url, outFile, cb, container.name, tmpFileName, self);
-              }
-            });
-          }
-          //if container doesn't exist
-          if (err) {
-            //create container
-            app.cdn.container.create(account, function(err, container) {
-              if (container) {
-                //upload file
-                app.logmessage(self._name + ' created container ' + container.name)
-                self.uploadToCDN(url, outFile, cb, container.name, tmpFileName, self);
-              }
-            });
-          }
-        });
-      }
-      //if file doesnt exist on FS
-      else {
-        //download file to FS
-        app.logmessage( self._name + ' creating local file ' + outFile);
-        var writeStream = fs.createWriteStream(outFile);
-        request.get(url).pipe(writeStream)
-        writeStream.on('close', function() {
-          app.logmessage(self._name + ' finished local download of ' + tmpFileName);
-          cb(false, exports, fileStruct);
-        });
-      }
-    });
-  },
-
-  uploadToCDN : function(url, outFile, cb, containerName, tmpFileName, self) {
-    app.cdn.file.upload({
-      container: containerName,
-      remote: tmpFileName,
-      local: outFile
-      }, function(err, result) {
-        if (result) {
-          app.logmessage(self._name + ' finished uploading ' + tmpFileName + ' to CloudFiles container ' + containerName);
-          cb(false, exports, fileStruct);
-        }
-        if (err) {
-          next(err);
-        }
-      });
-  },
-
   /**
      * Downloads file from url.  If the file exists, then stats the existing
      * file
@@ -1298,7 +1236,8 @@ Pod.prototype = {
       }
     }
 
-    try {
+   try {
+
       // apply channel config defaults into imports, if required
       // fields don't already exist
       var actionSchema = this.getActionSchemas()[action],
