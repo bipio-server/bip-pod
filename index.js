@@ -176,6 +176,12 @@ Pod.prototype = {
     this.$resource._httpPut = this._httpPut;
     this.$resource._httpStreamToFile = this._httpStreamToFile;
 
+    this.$resource.stream = {
+      toHash : app.helper.streamToHash,
+      toBuffer : app.helper.streamToBuffer
+    }
+
+    // temporary file management bridge
     this.$resource.file = {
       get : this._cdnFileGet,
       save : this._cdnFileSave
