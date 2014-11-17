@@ -22,63 +22,86 @@
  * A Bipio Commercial OEM License may be obtained via support@beta.bip.io
  */
 var passport = require('passport'),
-request = require('request'),
-moment = require('moment'),
-util = require('util'),
-fs = require('fs'),
-extend = require('extend');
-uuid = require('node-uuid'),
-mime = require('mime'),
-cron = require('cron');
+  request = require('request'),
+  moment = require('moment'),
+  util = require('util'),
+  fs = require('fs'),
+  extend = require('extend');
+  uuid = require('node-uuid'),
+  mime = require('mime'),
+  cron = require('cron'),
+  validator = require('validator');
 
+// pod required fields
 var requiredMeta = [
   'name',
-//  'title',
+  'title',
   'description'
 ];
 
 // constructor
 function Pod(metadata, init) {
 
+  // check required meta's
   for (var i = 0; i < requiredMeta.length; i++) {
     if (!metadata[requiredMeta[i]]) {
-      throw new Error('Pod is missing required "' + requiredMeta[i] + '" metadata');
+      throw new Error(metadata.name + ':Pod is missing required "' + requiredMeta[i] + '" metadata');
     }
   }
 
+  // pod id
   this._name = metadata.name;
-  this._title = (metadata.title || metadata.description);
-  this._description = (metadata.description || metadata.description_long);
+
+  // short title (human readable)
+  this._title = metadata.title;
+
+  // descriptive text
+  this._description = metadata.description;
+
+  // none|oauth|issuer_token
   this._authType = metadata.authType || 'none';
+
+  // object, map of { username|password|key : "Descriptive Text" }
   this._authMap = metadata.authMap || null;
+
+  // pod (stored) configuration
   this._config = metadata.config || null;
+
+  // requested data bindings
   this._dataSources = metadata.dataSources || [];
+
+  // pod renderers
   this._renderers = metadata.renderers || {};
-  this._oAuth = null;
+
+  // post-constructor
   this._podInit = init;
 
+  // create duplicate entity models
   this._trackDuplicates = metadata.trackDuplicates || false;
 
+  // oauth provider token refresh method
   if (metadata.oAuthRefresh) {
     this._oAuthRefresh = metadata.oAuthRefresh;
   }
 
-  this._oAuthRegistered = false;
+  // node-passport strategy
   this._passportStrategy = metadata.passportStrategy;
-  this._passportStrategyName = '';
 
-  this._sysImports = null;
+  // internals
+
+  this.$resource = {};
+
   this._schemas = {}; // import configs and schema; keyed to channel action
-  this._importContainer = {};
 
   this._dao = null;
-  this._sysConfig = {};
   this._actionProtos = [];
 
   this.actions = {};
   this.models = {};
-  this.$resource = {};
+
   this.crons = {};
+
+  this._oAuthRegistered = false;
 }
 
 Pod.prototype = {
@@ -92,10 +115,9 @@ Pod.prototype = {
      *
      * @param dao {Object} DAO.
      * @param config {Object} Pod Config
-     * @param sysConfig {Object} System Config
      *
      */
-  init : function(dao, config, sysConfig) {
+  init : function(dao, config) {
     var dsi = this._dataSources.length,
     self = this, dataSource, model;
 
@@ -115,7 +137,6 @@ Pod.prototype = {
     var tracker = require('./models/channel_pod_tracking');
     extend(true, tracker, Object.create(dao.getModelPrototype()));
     this._dao.registerModel(tracker);
-
 
     // create pod tracking container for duplicate entities
     if (this._trackDuplicates) {
@@ -143,8 +164,6 @@ Pod.prototype = {
       this.setConfig(config);
     }
 
-    this._sysConfig = sysConfig;
-
     // register the oauth strategy
     if (this._authType === 'oauth') {
       this._oAuthRegisterStrategy(
@@ -158,7 +177,7 @@ Pod.prototype = {
     this.$resource.moment = moment;
     this.$resource.mime = mime;
     this.$resource.uuid = uuid;
-    this.$resource.sanitize = app.helper.sanitize;
+    this.$resource.sanitize = validator.sanitize;
     this.$resource.htmlNormalize = function() {
       return app.helper.naturalize.apply(app.helper, arguments);
     };
@@ -317,7 +336,7 @@ Pod.prototype = {
     next(false);
   },
 
-  issuerTokenRPC : function(podName, method, req, res) {
+  issuerTokenRPC : function(method, req, res) {
     var ok = false, accountId = req.remoteUser.user.id;
     res.contentType(DEFS.CONTENTTYPE_JSON);
 
@@ -331,7 +350,7 @@ Pod.prototype = {
         var filter = {
           owner_id : accountId,
           type : this._authType,
-          auth_provider : podName
+          auth_provider : this._name
         };
 
         var struct = {
@@ -340,12 +359,13 @@ Pod.prototype = {
           key : req.query.key,
           password : req.query.password,
           type : this._authType,
-          auth_provider : podName
+          auth_provider : this._name
         };
 
         self.testCredentials(struct, function(err, status) {
           if (err) {
-            res.jsonp(status || 401, { "message" : err.toString() });
+
+            res.status(status || 401).jsonp({ "message" : err.toString() });
 
           } else {
             var model = self._dao.modelFactory('account_auth', struct);
@@ -362,9 +382,9 @@ Pod.prototype = {
                   self._dao.update('account_auth', result.id, struct, function(err, result) {
                     if (err) {
                       app.logmessage(err, 'error');
-                      res.jsonp(500, {});
+                      res.status(500).jsonp({});
                     } else {
-                      res.jsonp(200, {});
+                      res.status(200).jsonp({});
                     }
                   }, req.remoteUser);
                 } else {
@@ -372,16 +392,15 @@ Pod.prototype = {
                   self._dao.create(model, function(err, result) {
                     if (err) {
                       app.logmessage(err, 'error');
-                      res.jsonp(500, {});
+                      res.status(500).jsonp({});
                     } else {
                       self.autoInstall(req.remoteUser);
-                      res.jsonp(200, {});
+                      res.status(200).jsonp({});
                     }
                   }, req.remoteUser);
                 }
               }
             });
-
           }
         });
 
@@ -390,15 +409,15 @@ Pod.prototype = {
         var filter = {
           owner_id : accountId,
           type : 'issuer_token',
-          auth_provider : podName
+          auth_provider : this._name
         }
 
         this._dao.removeFilter('account_auth', filter, function(err) {
           if (!err) {
-            res.jsonp(200, {});
+            res.status(200).jsonp({});
           } else {
             app.logmessage(err, 'error');
-            res.jsonp(500, {});
+            res.status(500).jsonp({});
           }
         });
         ok = true;
@@ -408,15 +427,15 @@ Pod.prototype = {
   },
 
   /**
-     * @param string podName pod name == strategy name
      * @param string method auth rpc method name
      * @param object req request
      * @param object res response
      */
-  oAuthRPC: function(podName, method, req, res) {
+  oAuthRPC: function(method, req, res) {
     var ok = false,
     authMethod = (this._oAuthMethod) ? this._oAuthMethod : 'authorize',
     self = this,
+    podName = this._name,
     accountInfo = req.remoteUser,
     accountId = accountInfo.getId(),
     emitterHost = CFG.site_emitter || CFG.website_public;
@@ -479,11 +498,11 @@ Pod.prototype = {
     return ok;
   },
 
-  authStatus : function(owner_id, podName, next) {
+  authStatus : function(owner_id, next) {
     if (this.isOAuth()) {
-      this.oAuthStatus(owner_id, podName, next);
+      this.oAuthStatus(owner_id, next);
     } else {
-      this._getPassword(owner_id, podName, next);
+      this._getPassword(owner_id, next);
     }
   },
 
@@ -492,16 +511,21 @@ Pod.prototype = {
   },
 
   isOAuth : function() {
-    return this._authType == 'oauth';
+    return 'oauth' === this._authType;
   },
 
-  _getPassword : function(ownerId, podName, next) {
-    var self = this;
-    var filter = {
-      owner_id : ownerId,
-      type : this._authType,
-      auth_provider : podName
-    };
+  isIssuerAuth : function() {
+    return 'issuer_token' === this._authType;
+  },
+
+  _getPassword : function(ownerId, next) {
+    var self = this,
+      podName = this._name,
+      filter = {
+        owner_id : ownerId,
+        type : this._authType,
+        auth_provider : podName
+      };
 
     this._dao.find('account_auth', filter, function(err, result) {
       if (!result || err) {
@@ -521,8 +545,9 @@ Pod.prototype = {
   /**
      * passes oAuth result set if one exists
      */
-  oAuthStatus : function(owner_id, podName, next) {
+  oAuthStatus : function(owner_id, next) {
     var self = this,
+    podName = this._name,
     filter = {
       owner_id : owner_id,
       type : this._authType,
@@ -579,11 +604,11 @@ Pod.prototype = {
   /**
      *
      */
-  oAuthUnbind : function(podName, ownerid, next) {
+  oAuthUnbind : function(ownerid, next) {
     var filter = {
       owner_id : ownerid,
       type : 'oauth',
-      oauth_provider : podName
+      oauth_provider : this._name
     }
 
     this._dao.removeFilter('account_auth', filter, next);
@@ -592,7 +617,7 @@ Pod.prototype = {
       {
         owner_id : ownerid,
         action : {
-          $regex : podName + '\.*'
+          $regex : this._name + '\.*'
         }
       },
       {
@@ -656,15 +681,15 @@ Pod.prototype = {
   },
 
   /**
-     * Given an owner id and provider, retrieves the oauth token
+     * Given an owner id, retrieves the oauth token for this pod
      */
-  oAuthGetToken : function(owner_id, provider, next) {
+  oAuthGetToken : function(owner_id, next) {
     var self = this;
     this._dao.find(
       'account_auth',
       {
         'owner_id' : owner_id,
-        'oauth_provider' : provider
+        'oauth_provider' : this._name
       },
       function(err, result) {
         var authRecord;
@@ -711,14 +736,14 @@ Pod.prototype = {
     });
   },
 
-  authGetIssuerToken : function(owner_id, provider, next) {
+  authGetIssuerToken : function(owner_id, next) {
     var self = this;
 
     this._dao.find(
       'account_auth',
       {
         'owner_id' : owner_id,
-        'auth_provider' : provider
+        'auth_provider' : this._name
       },
       function(err, result) {
         var authRecord;
@@ -729,7 +754,7 @@ Pod.prototype = {
           if (err) {
             app.logmessage(err, 'error');
           } else if (!result) {
-            app.logmessage('no result for owner_id:' + owner_id + ' provider:' + provider, 'error');
+            app.logmessage('no result for owner_id:' + owner_id + ' provider:' + this._name, 'error');
           }
           next(err, result);
         }
@@ -1136,18 +1161,13 @@ Pod.prototype = {
   // -------------------------------------------------------------------------
 
   getImports: function(action) {
-    var ret;
+    var ret = {};
     if (action) {
-      ret = {};
       for (var prop in this._schemas[action].imports.properties) {
         ret[prop] = '';
       }
-
-    } else {
-      ret = this._importContainer;
     }
     return ret;
-
   },
 
   // ----------------------------------------------- CHANNEL BRIDGE INTERFACE
@@ -1224,6 +1244,58 @@ Pod.prototype = {
   },
 
   /**
+    *
+    *
+    *
+    */
+  bindUserAuth : function(sysImports, ownerId, next) {
+    var self = this;
+
+    if (!sysImports.auth) {
+      sysImports.auth = {};
+    }
+
+    if (this.isOAuth() && !sysImports.auth.oauth) {
+      this.oAuthGetToken(ownerId, this.name, function(err, oAuthToken, tokenSecret, authProfile) {
+        if (!err && oAuthToken) {
+          sysImports.auth = {
+            oauth : {
+              token : oAuthToken,
+              secret : tokenSecret,
+              profile : authProfile
+            }
+          };
+          next(false, sysImports);
+        } else {
+          next(err);
+        }
+      });
+
+    } else if (this.isIssuerAuth() && !sysImports.auth.issuer_token) {
+      this.authGetIssuerToken(ownerId, function(err, username, password, key) {
+        if (!(username || password || key)) {
+          err = 'No Authorization Tokens Set';
+        }
+
+        if (!err) {
+          sysImports.auth = {
+            issuer_token : {
+              username : username,
+              password : password,
+              key : key
+            }
+          };
+          next(false, sysImports);
+        } else {
+          next(err);
+        }
+      });
+    } else {
+      next(false, sysImports);
+    }
+  },
+
+  /**
      * Invokes the action
      *
      * @param action {String} action name
@@ -1281,12 +1353,15 @@ Pod.prototype = {
       }
 
       if (haveRequiredFields) {
+        //
         this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
           if (err) {
             self.log(err, channel, 'error');
           }
           next.apply(self, arguments);
         });
+
+
       } else {
         errStr = 'Missing Required Field(s):' + missingFields.join();
       }
