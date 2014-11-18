@@ -26,6 +26,7 @@ var passport = require('passport'),
   moment = require('moment'),
   util = require('util'),
   fs = require('fs'),
+  jsonPath = require('jsonpath'),
   extend = require('extend');
   uuid = require('node-uuid'),
   mime = require('mime'),
@@ -112,28 +113,58 @@ function Pod(metadata, init) {
 
 Pod.prototype = {
 
+  /**
+   * Retrieves matching elements from the manfiest with a JSON Path
+   * When no element found, returns null
+   *
+   * @param string path JSONPath
+   * @returns mixed result or null
+   */
+  getBPMAttr : function (path) {
+    var result = jsonPath.eval(this._bpm, path);
+    if (result.length === 1) {
+      return result[0];
+    } else if (result.length) {
+      return result;
+    } else {
+      return null;
+    }
+  },
 
-  // BPM Basic accessors
+  // BPM path accessors
   getName : function() {
-    return this._bpm.name;
+    return this.getBPMAttr('name');
   },
 
   getTitle : function() {
-    return this._bpm.title;
+    return this.getBPMAttr('title');
   },
 
   getDescription : function() {
-    return this._bpm.description;
+    return this.getBPMAttr('description');
   },
 
   getAuthType : function() {
-    return (this._bpm.auth && this._bpm.auth.strategy) ? this._bpm.auth.strategy : 'none';
+    return this.getBPMAttr('auth.strategy') || 'none';
   },
 
   getAuthMap : function() {
-    return (this._bpm.auth && this._bpm.auth.authMap) ? this._bpm.auth.authMap : {};
+    return this.getBPMAttr('auth.authMap') || {};
   },
 
+  getIcon : function() {
+    return CFG.cdn_public + '/pods/' + this.getName() + '.png';
+  },
+
+  getAuth : function() {
+    var auth = this.getBPMAttr('auth');
+    auth.status = 'none' === auth.strategy ? 'accepted' : 'required'
+    return auth;
+  },
+
+  getRPCs : function() {
+    return this.getBPMAttr('rpcs') || {};
+  },
 
   /**
      * Sets the configuration for this pod
@@ -167,6 +198,11 @@ Pod.prototype = {
       self = this,
       dataSource,
       model;
+
+    // set stored config
+    if (config) {
+      this.setConfig(config);
+    }
 
     if (!this._dao) {
       this._dao = dao;
@@ -202,11 +238,6 @@ Pod.prototype = {
       if (dataSources.hasOwnProperty(dsName)) {
         dataSource = _.clone(dataSources[dsName]);
 
-        // **TEMPORARY
-        _.each(dataSource.properties, function(prop) {
-          prop.type = String;
-        });
-
         // namespace the model + create an internal representation
         dataSource.entityName = this.getDataSourceName(dsName);
         dataSource.entitySchema = dataSource.properties;
@@ -218,14 +249,10 @@ Pod.prototype = {
             }
           )
         );
-//console.log(dataSource);
+
         extend(true, dataSource, Object.create(dao.getModelPrototype()));
         this._dao.registerModel(dataSource);
       }
-    }
-
-    if (config) {
-      this.setConfig(config);
     }
 
     // register the oauth strategy
@@ -1650,25 +1677,27 @@ Pod.prototype = {
     }
   },
 
-  describe : function(accountInfo) {
+  /**
+   * Creates a 'public' view of this pod
+   */
+  describe : function() {
     var self = this,
-    schema = {
-      'name' : this.getName(),
-      'title' : this.getTitle(),
-      'description' : this.getDescription(),
-      'icon' : CFG.cdn_public + '/pods/' + this.getName() + '.png',
-      'auth' : {
-        type : this._authType,
-        status : this._authType  == 'none' ? 'accepted' : 'required'
+      schema = {
+        'name' : this.getName(),
+        'title' : this.getTitle(),
+        'description' : this.getDescription(),
+        'icon' : this.getIcon(),
+        'auth' : this.getAuth(),
+        'rpcs' : this.getRPCs(),
+        'url' : this.getBPMAttr('url'),
+        'actions' : this.getBPMAttr('actions')
       },
-      'renderers' : this._renderers,
-      'actions' : {}
-    };
+      authType = this.getAuth().strategy;
 
     // attach auth binders
-    if (this._authType == 'oauth') {
+    if (authType == 'oauth') {
       schema.auth.scopes = this.getConfig().oauth.scopes || [];
-      schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' +  this.getName() + '/auth';
+      schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' + this.getName() + '/auth';
       schema.auth.authKeys = [];
 
       for (var k in this.getConfig().oauth) {
@@ -1677,11 +1706,12 @@ Pod.prototype = {
         }
       }
 
-    } else if (this._authType == 'issuer_token') {
+    } else if (authType == 'issuer_token') {
       schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this.getName() + '/set';
       schema.auth.authMap = this.getAuthMap();
     }
 
+    /*
     for (action in this._schemas) {
       if (!this._schemas[action].admin) {
         schema.actions[action] = this._schemas[action];
@@ -1690,6 +1720,7 @@ Pod.prototype = {
         }
       }
     }
+    */
 
     return schema;
   },
