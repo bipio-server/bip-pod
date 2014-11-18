@@ -94,6 +94,14 @@ function Pod(metadata, init) {
 
   // internals
 
+  // oauth provider token refresh method
+  if (metadata.oAuthRefresh) {
+    this._oAuthRefresh = metadata.oAuthRefresh;
+  }
+
+  // post-constructor
+  this._podInit = init;
+
   this._bpm = {};
 
   this.$resource = {};
@@ -131,7 +139,7 @@ Pod.prototype = {
     }
   },
 
-  // BPM path accessors
+  // --------------------------- BPM path accessors
   getName : function() {
     return this.getBPMAttr('name');
   },
@@ -162,9 +170,30 @@ Pod.prototype = {
     return auth;
   },
 
+
+
   getRPCs : function() {
     return this.getBPMAttr('rpcs') || {};
   },
+
+  getTriggerType : function(action) {
+    return this.getBPMAttr('actions.' + action + '.trigger');
+  },
+
+  // --------------------------- Compund tests
+
+  // invoker for this action can generate its own content (periodically)
+  canTrigger: function(action) {
+    var tt = this.getTriggerType(action);
+    return ('poll' === tt || 'realtime' === tt);
+  },
+
+  // action can render its own stored content
+  canRender: function(action) {
+    return this.getBPMAttr('actions.' + action + '.rpcs') !== null;
+  },
+
+  //
 
   /**
      * Sets the configuration for this pod
@@ -192,7 +221,9 @@ Pod.prototype = {
      *
      */
   init : function(podName, dao, config) {
-    this._bpm = require(__dirname + '/../bip-pod-' + podName + '/bpm.json');
+    var reqBase = __dirname + '/../bip-pod-' + podName ;
+
+    this._bpm = require(reqBase + '/bpm.json');
 
     var dataSources = this.getDataSources(),
       self = this,
@@ -206,14 +237,6 @@ Pod.prototype = {
 
     if (!this._dao) {
       this._dao = dao;
-    }
-
-    if (this._renderers) {
-      for (var k in this._renderers) {
-        if (this._renderers.hasOwnProperty(k)) {
-          this._renderers[k]._href = this._dao.getBaseUrl() + '/rpc/pod/' + self.getName() + '/render/' + k;
-        }
-      }
     }
 
     // register generic tracker
@@ -256,12 +279,31 @@ Pod.prototype = {
     }
 
     // register the oauth strategy
-    if (this._authType === 'oauth') {
+    if (this.getAuthType() === 'oauth') {
+
+console.log(self.getAuth());
       this._oAuthRegisterStrategy(
-        this._passportStrategy,
+        require(reqBase + '/node_modules/' + self.getAuth().passportStrategy).Strategy,
+//        this._passportStrategy,
         self.getConfig().oauth
         );
     }
+
+
+    // bind pod renderers
+    var rpcs = this.getRPCs();
+    _.each(rpcs, function(rpc, key) {
+      rpc._href = self._dao.getBaseUrl() + '/rpc/pod/' + self.getName() + '/render/' + key;
+
+      if (!rpc.method) {
+        rpc.method = 'GET';
+      }
+
+      if (!rpc.name) {
+        rpc.name = key;
+      }
+
+    });
 
     // create resources for Actions
     this.$resource.dao = dao;
@@ -862,15 +904,7 @@ Pod.prototype = {
     ret += '/rpc/pod/' + this.getName() + '/' + action + '/render';
   },
 
-  // invoker for this action can generate its own content (periodically)
-  canTrigger: function(action) {
-    return this._schemas[action].trigger;
-  },
 
-  // action can render its own stored content
-  canRender: function(action) {
-    return (this._renderers && this._renderers[action]);
-  },
 
   // tests whether renderer is available for an action
   isRenderer : function(action, renderer) {
@@ -1677,11 +1711,15 @@ Pod.prototype = {
     }
   },
 
+  _rpcCache : null,
+  _rpcActionCache : {},
+
   /**
-   * Creates a 'public' view of this pod
+   * Creates a json-schema-ish 'public' view of this Pod
    */
   describe : function() {
     var self = this,
+      rpcs = this.getRPCs(),
       schema = {
         'name' : this.getName(),
         'title' : this.getTitle(),
@@ -1689,6 +1727,7 @@ Pod.prototype = {
         'icon' : this.getIcon(),
         'auth' : this.getAuth(),
         'rpcs' : this.getRPCs(),
+//        'links' : [],
         'url' : this.getBPMAttr('url'),
         'actions' : this.getBPMAttr('actions')
       },
@@ -1711,13 +1750,44 @@ Pod.prototype = {
       schema.auth.authMap = this.getAuthMap();
     }
 
+//    if (!this._rpcCache) {
+      // normalise + cache rpc definitions for JSON schema
+/*
+      _.each(rpcs, function(rpc, key) {
+        rpc._href = self._dao.getBaseUrl() + '/rpc/pod/' + self.getName() + '/render/' + key;
+      });
+*/
+        /*
+        schema.links.push({
+          title : rpc.title,
+          rel : key,
+          name : key,
+          method : 'GET',
+          contentType : key.contentType || 'application/json',
+          href : self._dao.getBaseUrl() + '/rpc/pod/' + self.getName() + '/render/' + key
+        });
+      });
+*/
+//      this._rpcCache = schema.links;
+//    } else {
+//      schema.links = this._rpcCache;
+//    }
+
+    // normalise action rpcs
     /*
-    for (action in this._schemas) {
-      if (!this._schemas[action].admin) {
-        schema.actions[action] = this._schemas[action];
-        if (this.canRender(action)) {
-          schema.actions[action]['_href'] = this._getRendererUrl();
-        }
+    for (action in schema.actions) {
+      if (this.canRender(action)) {
+        schema.actions[action].links = [];
+        _.each(schema.actions[action].rpcs, function(rpc, key) {
+          schema.actions[action].links.push({
+            title : rpc.title,
+            rel : key,
+            name : key,
+            method : 'GET',
+            contentType : key.contentType || 'application/json',
+            href : self._dao.getBaseUrl() + '/rpc/pod/' + self.getName() + '/' + action + '/render/' + key
+          });
+        });
       }
     }
     */
