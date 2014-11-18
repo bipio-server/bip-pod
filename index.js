@@ -30,6 +30,7 @@ var passport = require('passport'),
   uuid = require('node-uuid'),
   mime = require('mime'),
   cron = require('cron'),
+  _ = require('underscore'),
   validator = require('validator');
 
 // pod required fields
@@ -42,6 +43,7 @@ var requiredMeta = [
 // constructor
 function Pod(metadata, init) {
 
+/*
   // check required meta's
   for (var i = 0; i < requiredMeta.length; i++) {
     if (!metadata[requiredMeta[i]]) {
@@ -50,22 +52,22 @@ function Pod(metadata, init) {
   }
 
   // pod id
-  this._name = metadata.name;
+**  this._name = metadata.name;
 
   // short title (human readable)
-  this._title = metadata.title;
+**  this._title = metadata.title;
 
   // descriptive text
-  this._description = metadata.description;
+**  this._description = metadata.description;
 
   // none|oauth|issuer_token
-  this._authType = metadata.authType || 'none';
+**  this._authType = metadata.authType || 'none';
 
   // object, map of { username|password|key : "Descriptive Text" }
-  this._authMap = metadata.authMap || null;
+**  this._authMap = metadata.authMap || null;
 
   // pod (stored) configuration
-  this._config = metadata.config || null;
+**  this._config = metadata.config || null;
 
   // requested data bindings
   this._dataSources = metadata.dataSources || [];
@@ -87,7 +89,11 @@ function Pod(metadata, init) {
   // node-passport strategy
   this._passportStrategy = metadata.passportStrategy;
 
+*/
+
   // internals
+
+  this._bpm = {};
 
   this.$resource = {};
 
@@ -105,8 +111,45 @@ function Pod(metadata, init) {
 }
 
 Pod.prototype = {
-  getDataSourceName : function(dsName) {
-    return 'pod_' + this._name.replace(/-/g, '_') + '_' + dsName;
+
+
+  // BPM Basic accessors
+  getName : function() {
+    return this._bpm.name;
+  },
+
+  getTitle : function() {
+    return this._bpm.title;
+  },
+
+  getDescription : function() {
+    return this._bpm.description;
+  },
+
+  getAuthType : function() {
+    return (this._bpm.auth && this._bpm.auth.strategy) ? this._bpm.auth.strategy : 'none';
+  },
+
+  getAuthMap : function() {
+    return (this._bpm.auth && this._bpm.auth.authMap) ? this._bpm.auth.authMap : {};
+  },
+
+
+  /**
+     * Sets the configuration for this pod
+     *
+     * @param config {Object} configuration structure for this Pod
+     */
+  setConfig: function(config) {
+    this._bpm.config = config;
+  },
+
+  getConfig : function() {
+    return this._bpm.config;
+  },
+
+  getDataSources : function() {
+    return this._bpm.dataSources;
   },
 
   /**
@@ -117,9 +160,13 @@ Pod.prototype = {
      * @param config {Object} Pod Config
      *
      */
-  init : function(dao, config) {
-    var dsi = this._dataSources.length,
-    self = this, dataSource, model;
+  init : function(podName, dao, config) {
+    this._bpm = require(__dirname + '/../bip-pod-' + podName + '/bpm.json');
+
+    var dataSources = this.getDataSources(),
+      self = this,
+      dataSource,
+      model;
 
     if (!this._dao) {
       this._dao = dao;
@@ -128,7 +175,7 @@ Pod.prototype = {
     if (this._renderers) {
       for (var k in this._renderers) {
         if (this._renderers.hasOwnProperty(k)) {
-          this._renderers[k]._href = this._dao.getBaseUrl() + '/rpc/pod/' + self._name + '/render/' + k;
+          this._renderers[k]._href = this._dao.getBaseUrl() + '/rpc/pod/' + self.getName() + '/render/' + k;
         }
       }
     }
@@ -140,7 +187,7 @@ Pod.prototype = {
 
     // create pod tracking container for duplicate entities
     if (this._trackDuplicates) {
-      var podDupTracker = app._.clone(require('./models/dup'));
+      var podDupTracker = _.clone(require('./models/dup'));
 
       podDupTracker.entityName = this.getDataSourceName(podDupTracker.entityName);
       extend(true, podDupTracker, Object.create(dao.getModelPrototype()));
@@ -151,13 +198,30 @@ Pod.prototype = {
     }
 
     // register pod data sources
-    for (var i = 0; i < dsi; i++) {
-      dataSource = this._dataSources[i];
-      // namespace the model
-      dataSource.entityName = this.getDataSourceName(dataSource.entityName);
+    for (var dsName in dataSources) {
+      if (dataSources.hasOwnProperty(dsName)) {
+        dataSource = _.clone(dataSources[dsName]);
 
-      extend(true, dataSource, Object.create(dao.getModelPrototype()));
-      this._dao.registerModel(dataSource);
+        // **TEMPORARY
+        _.each(dataSource.properties, function(prop) {
+          prop.type = String;
+        });
+
+        // namespace the model + create an internal representation
+        dataSource.entityName = this.getDataSourceName(dsName);
+        dataSource.entitySchema = dataSource.properties;
+        dataSource.compoundKeyConstraints  = _.object(
+          _.map(
+            dataSource.keys,
+            function(x) {
+              return [x, 1]
+            }
+          )
+        );
+//console.log(dataSource);
+        extend(true, dataSource, Object.create(dao.getModelPrototype()));
+        this._dao.registerModel(dataSource);
+      }
     }
 
     if (config) {
@@ -168,7 +232,7 @@ Pod.prototype = {
     if (this._authType === 'oauth') {
       this._oAuthRegisterStrategy(
         this._passportStrategy,
-        self._config.oauth
+        self.getConfig().oauth
         );
     }
 
@@ -183,7 +247,7 @@ Pod.prototype = {
     };
     this.$resource.log = this.log;
     this.$resource.getDataSourceName = function(dsName) {
-      return 'pod_' + self._name.replace(/-/g, '_') + '_' + dsName;
+      return 'pod_' + self.getName().replace(/-/g, '_') + '_' + dsName;
     };
 
     this.$resource.getDataDir = this.getDataDir;
@@ -216,7 +280,7 @@ Pod.prototype = {
     // bind actions
     var action;
     for (i = 0; i < this._actionProtos.length; i++) {
-      action = new this._actionProtos[i](this._config, this);
+      action = new this._actionProtos[i](this.getConfig(), this);
       action.$resource = this.$resource;
       action.pod = this;
       this.actions[action.name] = action;
@@ -228,13 +292,17 @@ Pod.prototype = {
     }
   },
 
+  getDataSourceName : function(dsName) {
+    return 'pod_' + this.getName().replace(/-/g, '_') + '_' + dsName;
+  },
+
   // provide a scheduler service
   registerCron : function(id, period, callback) {
     var self = this;
 
     if (this.$resource.cron) {
       if (!this.crons[id]) {
-        app.logmessage('POD:Registering Cron:' + self._name + ':' + id);
+        app.logmessage('POD:Registering Cron:' + self.getName() + ':' + id);
           self.crons[id] = new self.$resource.cron.CronJob(
             period,
             callback,
@@ -294,19 +362,6 @@ Pod.prototype = {
   },
 
   /**
-     * Sets the configuration for this pod
-     *
-     * @param config {Object} configuration structure for this Pod
-     */
-  setConfig: function(config) {
-    this._config = config;
-  },
-
-  getConfig : function() {
-    return this._config;
-  },
-
-  /**
      * Logs a message
      */
   log : function(message, channel, level) {
@@ -342,7 +397,7 @@ Pod.prototype = {
 
     if (this._authType == 'issuer_token') {
       if (method == 'set') {
-        app.logmessage('[' + accountId + '] ISSUER_TOKEN ' + this._name + ' SET' );
+        app.logmessage('[' + accountId + '] ISSUER_TOKEN ' + this.getName() + ' SET' );
 
         var self = this;
 
@@ -350,7 +405,7 @@ Pod.prototype = {
         var filter = {
           owner_id : accountId,
           type : this._authType,
-          auth_provider : this._name
+          auth_provider : this.getName()
         };
 
         var struct = {
@@ -359,7 +414,7 @@ Pod.prototype = {
           key : req.query.key,
           password : req.query.password,
           type : this._authType,
-          auth_provider : this._name
+          auth_provider : this.getName()
         };
 
         self.testCredentials(struct, function(err, status) {
@@ -409,7 +464,7 @@ Pod.prototype = {
         var filter = {
           owner_id : accountId,
           type : 'issuer_token',
-          auth_provider : this._name
+          auth_provider : this.getName()
         }
 
         this._dao.removeFilter('account_auth', filter, function(err) {
@@ -435,7 +490,7 @@ Pod.prototype = {
     var ok = false,
     authMethod = (this._oAuthMethod) ? this._oAuthMethod : 'authorize',
     self = this,
-    podName = this._name,
+    podName = this.getName(),
     accountInfo = req.remoteUser,
     accountId = accountInfo.getId(),
     emitterHost = CFG.site_emitter || CFG.website_public;
@@ -445,12 +500,12 @@ Pod.prototype = {
       if (method == 'auth') {
         app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
 
-        passport[authMethod](this._name, this._oAuthConfig)(req, res);
+        passport[authMethod](this.getName(), this._oAuthConfig)(req, res);
         ok = true;
 
       } else if (method == 'cb') {
         app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
-        passport[authMethod](this._name, function(err, user) {
+        passport[authMethod](this.getName(), function(err, user) {
 
           // @todo - decouple from site.
           if (err) {
@@ -506,10 +561,6 @@ Pod.prototype = {
     }
   },
 
-  getAuthType : function() {
-    return this._authType;
-  },
-
   isOAuth : function() {
     return 'oauth' === this._authType;
   },
@@ -520,7 +571,7 @@ Pod.prototype = {
 
   _getPassword : function(ownerId, next) {
     var self = this,
-      podName = this._name,
+      podName = this.getName(),
       filter = {
         owner_id : ownerId,
         type : this._authType,
@@ -547,11 +598,11 @@ Pod.prototype = {
      */
   oAuthStatus : function(owner_id, next) {
     var self = this,
-    podName = this._name,
+    podName = this.getName(),
     filter = {
       owner_id : owner_id,
       type : this._authType,
-      oauth_provider : this._name
+      oauth_provider : this.getName()
     };
     this._dao.find('account_auth', filter, function(err, result) {
       next(err, podName, self._authType, result);
@@ -565,8 +616,8 @@ Pod.prototype = {
      */
   _oAuthRegisterStrategy : function(strategy, config) {
     var localConfig = {
-      callbackURL : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this._name + '/cb',
-      failureRedirect : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this._name + '/denied',
+      callbackURL : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this.getName() + '/cb',
+      failureRedirect : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this.getName() + '/denied',
       passReqToCallback: true
     },
     passportStrategy,
@@ -596,7 +647,7 @@ Pod.prototype = {
     // set strategy name as the pod name
     // this is for authing separate applications/pods
     // with the same strategy
-    passportStrategy.name = this._name;
+    passportStrategy.name = this.getName();
 
     passport.use(passportStrategy);
   },
@@ -608,7 +659,7 @@ Pod.prototype = {
     var filter = {
       owner_id : ownerid,
       type : 'oauth',
-      oauth_provider : this._name
+      oauth_provider : this.getName()
     }
 
     this._dao.removeFilter('account_auth', filter, next);
@@ -617,7 +668,7 @@ Pod.prototype = {
       {
         owner_id : ownerid,
         action : {
-          $regex : this._name + '\.*'
+          $regex : this.getName() + '\.*'
         }
       },
       {
@@ -636,14 +687,14 @@ Pod.prototype = {
     var filter = {
       owner_id : accountId,
       type : 'oauth',
-      oauth_provider : this._name
+      oauth_provider : this.getName()
     };
 
     var struct = {
       owner_id : accountId,
       password : accessToken,
       type : 'oauth',
-      oauth_provider : this._name,
+      oauth_provider : this.getName(),
       oauth_refresh : refreshToken || '',
       oauth_profile : profile._json ? profile._json : profile
     };
@@ -689,7 +740,7 @@ Pod.prototype = {
       'account_auth',
       {
         'owner_id' : owner_id,
-        'oauth_provider' : this._name
+        'oauth_provider' : this.getName()
       },
       function(err, result) {
         var authRecord;
@@ -726,7 +777,7 @@ Pod.prototype = {
           },
           function(err) {
             if (!err) {
-              app.logmessage(self._name + ':OAuthRefresh:' + authModel.owner_id);
+              app.logmessage(self.getName() + ':OAuthRefresh:' + authModel.owner_id);
             } else {
               app.logmessage(err, 'error');
             }
@@ -743,7 +794,7 @@ Pod.prototype = {
       'account_auth',
       {
         'owner_id' : owner_id,
-        'auth_provider' : this._name
+        'auth_provider' : this.getName()
       },
       function(err, result) {
         var authRecord;
@@ -754,7 +805,7 @@ Pod.prototype = {
           if (err) {
             app.logmessage(err, 'error');
           } else if (!result) {
-            app.logmessage('no result for owner_id:' + owner_id + ' provider:' + this._name, 'error');
+            app.logmessage('no result for owner_id:' + owner_id + ' provider:' + this.getName(), 'error');
           }
           next(err, result);
         }
@@ -781,7 +832,7 @@ Pod.prototype = {
       ret = accountInfo.getDomain(true);
     }
 
-    ret += '/rpc/pod/' + this._name + '/' + action + '/render';
+    ret += '/rpc/pod/' + this.getName() + '/' + action + '/render';
   },
 
   // invoker for this action can generate its own content (periodically)
@@ -809,10 +860,6 @@ Pod.prototype = {
     } else {
       return this.repr();
     }
-  },
-
-  getName : function() {
-    return this._name;
   },
 
   getSchema : function(action) {
@@ -1006,10 +1053,10 @@ Pod.prototype = {
 
     fs.exists(outLock, function(exists) {
       if (exists) {
-        app.logmessage( self._name + ' LOCKED, skipping [' + outFile + ']');
+        app.logmessage( self.getName() + ' LOCKED, skipping [' + outFile + ']');
 
       } else {
-        app.logmessage( self._name + ' writing to [' + outFile + ']');
+        app.logmessage( self.getName() + ' writing to [' + outFile + ']');
         fs.exists(outFile, function(exists) {
           if (exists) {
             fs.stat(outFile, function(err, stats) {
@@ -1017,14 +1064,14 @@ Pod.prototype = {
                 app.logmessage(err, 'error');
                 next(true);
               } else {
-                app.logmessage( self._name + ' CACHED, skipping [' + outFile + ']');
+                app.logmessage( self.getName() + ' CACHED, skipping [' + outFile + ']');
                 fileStruct.size = stats.size;
                 cb(false, exports, fileStruct);
               }
             });
           } else {
             fs.open(outLock, 'w', function() {
-              app.logmessage( self._name + ' FETCH [' + url + '] > [' + outFile + ']');
+              app.logmessage( self.getName() + ' FETCH [' + url + '] > [' + outFile + ']');
               request.get(
                 url,
                 function(exports, fileStruct) {
@@ -1033,10 +1080,10 @@ Pod.prototype = {
                     if (!error && res.statusCode == 200) {
                       fs.stat(outFile, function(err, stats) {
                         if (err) {
-                          app.logmessage(self._name + ' ' + err, 'error');
+                          app.logmessage(self.getName() + ' ' + err, 'error');
                           next(true);
                         } else {
-                          app.logmessage( self._name + ' done [' + outFile + ']');
+                          app.logmessage( self.getName() + ' done [' + outFile + ']');
                           fileStruct.size = stats.size;
                           cb(false, exports, fileStruct);
                         }
@@ -1059,7 +1106,7 @@ Pod.prototype = {
     if (undefined != channel.owner_id) {
       dDir += channel.owner_id + '/';
     }
-    dDir += this._name + '/' + action + '/' + channel.id + '/';
+    dDir += this.getName() + '/' + action + '/' + channel.id + '/';
 
     app.helper.mkdir_p(dDir, 0777 , function(err, path) {
       if (err) {
@@ -1081,7 +1128,7 @@ Pod.prototype = {
     if (undefined != channel.owner_id) {
       dDir += channel.owner_id + '/';
     }
-    dDir += this._name + '/' + action + '/' + channel.id + '/';
+    dDir += this.getName() + '/' + action + '/' + channel.id + '/';
 
     app.helper.rmdir(dDir, function(err) {
       if (err) {
@@ -1101,7 +1148,7 @@ Pod.prototype = {
     if (undefined != channel.owner_id) {
       dDir += channel.owner_id + '/';
     }
-    dDir += this._name + '/' + action + '/' + channel.id + '/';
+    dDir += this.getName() + '/' + action + '/' + channel.id + '/';
 
     fs.readdir(dDir, function(err, files) {
       if (err) {
@@ -1574,7 +1621,7 @@ Pod.prototype = {
         if (s.singleton || s.auto) {
           channelTemplate = {
             name : s.title,
-            action : this._name + '.' + key,
+            action : this.getName() + '.' + key,
             config : {}, // singletons don't have config
             note : s.description
           };
@@ -1606,10 +1653,10 @@ Pod.prototype = {
   describe : function(accountInfo) {
     var self = this,
     schema = {
-      'name' : this._name,
-      'title' : this._title,
-      'description' : this._description,
-      'icon' : CFG.cdn_public + '/pods/' + this._name + '.png',
+      'name' : this.getName(),
+      'title' : this.getTitle(),
+      'description' : this.getDescription(),
+      'icon' : CFG.cdn_public + '/pods/' + this.getName() + '.png',
       'auth' : {
         type : this._authType,
         status : this._authType  == 'none' ? 'accepted' : 'required'
@@ -1620,21 +1667,19 @@ Pod.prototype = {
 
     // attach auth binders
     if (this._authType == 'oauth') {
-      schema.auth.scopes = this._config.oauth.scopes || [];
-      schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' +  this._name + '/auth';
+      schema.auth.scopes = this.getConfig().oauth.scopes || [];
+      schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' +  this.getName() + '/auth';
       schema.auth.authKeys = [];
 
-      for (var k in this._config.oauth) {
-        if (this._config.oauth.hasOwnProperty(k) && /^client/.test(k)) {
+      for (var k in this.getConfig().oauth) {
+        if (this.getConfig().oauth.hasOwnProperty(k) && /^client/.test(k)) {
           schema.auth.authKeys.push(k);
         }
       }
 
     } else if (this._authType == 'issuer_token') {
-      schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this._name + '/set';
-      if (this._authMap) {
-        schema.auth.authMap = this._authMap;
-      }
+      schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this.getName() + '/set';
+      schema.auth.authMap = this.getAuthMap();
     }
 
     for (action in this._schemas) {
