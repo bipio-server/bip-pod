@@ -75,177 +75,6 @@ function Pod(metadata, init) {
 }
 
 Pod.prototype = {
-
-  /**
-   * Retrieves matching elements from the manfiest with a JSON Path
-   * When no element found, returns null
-   *
-   * @param string path JSONPath
-   * @returns mixed result or null
-   */
-  getBPMAttr : function (path) {
-    var result = jsonPath.eval(this._bpm, path);
-    if (result.length === 1) {
-      return result[0];
-    } else if (result.length) {
-      return result;
-    } else {
-      return null;
-    }
-  },
-
-  // --------------------------- BPM path accessors
-  getName : function() {
-    return this.getBPMAttr('name');
-  },
-
-  getTitle : function() {
-    return this.getBPMAttr('title');
-  },
-
-  getDescription : function() {
-    return this.getBPMAttr('description');
-  },
-
-  getAuthType : function() {
-    return this.getBPMAttr('auth.strategy') || 'none';
-  },
-
-  getAuthMap : function() {
-    return this.getBPMAttr('auth.authMap') || {};
-  },
-
-  getIcon : function() {
-    return CFG.cdn_public + '/pods/' + this.getName() + '.png';
-  },
-
-  getAuth : function() {
-    var auth = this.getBPMAttr('auth');
-    auth.status = 'none' === auth.strategy ? 'accepted' : 'required'
-    return auth;
-  },
-
-  getRPCs : function() {
-    return this.getBPMAttr('rpcs') || {};
-  },
-
-  getConfig : function() {
-    return this.getBPMAttr('config') || {};
-  },
-
-  getDataSources : function() {
-    return this.getBPMAttr('dataSources') || {};
-  },
-
-  // --------------------------- BPM ACTION Path Accessors
-
-  getTriggerType : function(action) {
-    return this.getBPMAttr('actions.' + action + '.trigger');
-  },
-
-  getActionSchemas : function() {
-    return this.getBPMAttr('actions');
-  },
-
-  getAction : function(action) {
-    return this.getBPMAttr('actions.' + action);
-  },
-
-  getActionConfig : function(action) {
-    return this.getBPMAttr('actions.' + action + '.config');
-  },
-
-  getActionExports : function(action) {
-    return this.getExports(action);
-  },
-
-  // @deprecate getActionExports
-  getExports : function(action) {
-    return this.getBPMAttr('actions.' + action + '.exports');
-  },
-
-
-  getActionImports : function(action) {
-    return this.getImports(action);
-  },
-
-  // @deprecate getActionImports
-  getImports: function(action) {
-    return this.getBPMAttr('actions.' + action + '.imports');
-  },
-
-  getActionConfigDefaults : function(action) {
-    var defaults = {},
-      config = this.getActionConfig(action);
-
-    _.each(config, function(attr, key) {
-      if (attr['default']) {
-        defaults[key] = attr['default'];
-      }
-    });
-
-    return defaults;
-  },
-
-  // description of the action
-  getActionDescription : function(action) {
-    return this.getAction(action).description || this.repr();
-  },
-
-  // @todo deprecate for explicit getSchema + getActionSchema
-  getSchema : function(action) {
-    var schema;
-    if (action) {
-      return this.getAction(action);
-
-    } else {
-      return this._bpm;
-    }
-  },
-
-  // --------------------------- Compund tests
-
-  // invoker for this action can generate its own content (periodically)
-  isTrigger: function(action) {
-    var tt = this.getTriggerType(action);
-    return ('poll' === tt || 'realtime' === tt);
-  },
-
-  isRealTime : function(action) {
-    var tt = this.getTriggerType(action);
-    return ('realtime' === tt);
-  },
-
-  // @deprecate use isRealTime
-  isSocket : function(action) {
-    return this.isRealTime(action);
-  },
-
-  // action can render its own stored content
-  canRender: function(action) {
-    return this.getBPMAttr('actions.' + action + '.rpcs') !== null;
-  },
-
-  // tests whether renderer is available for an action
-  isRenderer : function(action, renderer) {
-    return this.getBPMAttr('actions.' + action + '.rpcs.' + renderer) !== null;
-  },
-
-  testImport : function(action, importName) {
-    return this.getBPMAttr('actions.' + action + '.imports.' + importName)
-  },
-
-  //
-
-  /**
-     * Sets the configuration for this pod
-     *
-     * @param config {Object} configuration structure for this Pod
-     */
-  setConfig: function(config) {
-    this._bpm.config = config;
-  },
-
   /**
      * make system resources available to the pod. Invoked by the Pod registrar
      * in the Channels model when bootstrapping.
@@ -258,6 +87,13 @@ Pod.prototype = {
     var reqBase = __dirname + '/../bip-pod-' + podName ;
 
     this._bpm = require(reqBase + '/bpm.json');
+
+    // check required meta's
+    for (var i = 0; i < requiredMeta.length; i++) {
+      if (!this.getBPMAttr(requiredMeta[i])) {
+        throw new Error(podName + ' Pod is missing required "' + requiredMeta[i] + '" metadata');
+      }
+    }
 
     var dataSources = this.getDataSources(),
       self = this,
@@ -406,8 +242,196 @@ Pod.prototype = {
     }
   },
 
+  /**
+   * Retrieves matching elements from the manfiest with a JSON Path
+   * When no element found, returns null
+   *
+   * @param string path JSONPath
+   * @returns mixed result or null
+   */
+  getBPMAttr : function (path) {
+    var result = jsonPath.eval(this._bpm, path);
+    if (result.length === 1) {
+      return result[0];
+    } else if (result.length) {
+      return result;
+    } else {
+      return null;
+    }
+  },
+
+  // --------------------------- BPM path accessors
+  getName : function() {
+    return this.getBPMAttr('name');
+  },
+
+  getTitle : function() {
+    return this.getBPMAttr('title');
+  },
+
+  getDescription : function() {
+    return this.getBPMAttr('description');
+  },
+
+  getIcon : function() {
+    return CFG.cdn_public + '/pods/' + this.getName() + '.png';
+  },
+
+  getRPCs : function() {
+    return this.getBPMAttr('rpcs') || {};
+  },
+
+  // AUTH
+
+  getAuthType : function() {
+    return this.getBPMAttr('auth.strategy') || 'none';
+  },
+
+  getAuthMap : function() {
+    return this.getBPMAttr('auth.authMap') || {};
+  },
+
+  getAuth : function() {
+    var auth = this.getBPMAttr('auth');
+    auth.status = 'none' === auth.strategy ? 'accepted' : 'required'
+    return auth;
+  },
+
+  // POD CONFIG
+
+  getConfig : function() {
+    return this.getBPMAttr('config') || {};
+  },
+
+  setConfig: function(config) {
+    this._bpm.config = config;
+  },
+
+  // DATASOURCES
+
+  getDataSources : function() {
+    return this.getBPMAttr('dataSources') || {};
+  },
+
   getDataSourceName : function(dsName) {
     return 'pod_' + this.getName().replace(/-/g, '_') + '_' + dsName;
+  },
+
+  // DAO
+
+  setDao: function(dao) {
+    this._dao = dao;
+  },
+
+  getDao: function() {
+    return this._dao;
+  },
+
+  // --------------------------- BPM ACTION Path Accessors
+
+  getTriggerType : function(action) {
+    return this.getBPMAttr('actions.' + action + '.trigger');
+  },
+
+  getActionSchemas : function() {
+    return this.getBPMAttr('actions');
+  },
+
+  getAction : function(action) {
+    return this.getBPMAttr('actions.' + action);
+  },
+
+  getActionConfig : function(action) {
+    return this.getBPMAttr('actions.' + action + '.config');
+  },
+
+  // @todo deprecate for getActionConfig
+  importGetConfig: function(action) {
+    return thsi.getActionConfig(action);
+  },
+
+  getActionExports : function(action) {
+    return this.getBPMAttr('actions.' + action + '.exports');
+  },
+
+  // @deprecate for getActionExports
+  getExports : function(action) {
+    return this.getActionExports(action);
+  },
+
+  getActionImports : function(action) {
+    return this.getBPMAttr('actions.' + action + '.imports');
+  },
+
+  // @deprecate for getActionImports
+  getImports: function(action) {
+    return getActionImports(action);
+  },
+
+  getActionConfigDefaults : function(action) {
+    var defaults = {},
+      config = this.getActionConfig(action);
+
+    _.each(config, function(attr, key) {
+      if (attr['default']) {
+        defaults[key] = attr['default'];
+      }
+    });
+
+    return defaults;
+  },
+
+  // @todo deprecate for getActionConfigDefaults
+  importGetDefaults : function(action) {
+    return this.getActionConfigDefaults(action);
+  },
+
+  // description of the action
+  getActionDescription : function(action) {
+    return this.getAction(action).description;
+  },
+
+  // @todo deprecate for explicit getSchema + getActionSchema
+  getSchema : function(action) {
+    var schema;
+    if (action) {
+      return this.getAction(action);
+
+    } else {
+      return this._bpm;
+    }
+  },
+
+  // --------------------------- Compound tests and helpers
+
+  // invoker for this action can generate its own content (periodically)
+  isTrigger: function(action) {
+    var tt = this.getTriggerType(action);
+    return ('poll' === tt || 'realtime' === tt);
+  },
+
+  isRealTime : function(action) {
+    var tt = this.getTriggerType(action);
+    return ('realtime' === tt);
+  },
+
+  // @deprecate use isRealTime
+  isSocket : function(action) {
+    return this.isRealTime(action);
+  },
+
+  // action can render its own stored content
+  canRender: function(action) {
+    return this.getBPMAttr('actions.' + action + '.rpcs') !== null;
+  },
+
+  // tests whether renderer is available for an action
+  isRenderer : function(action, renderer) {
+    return this.getBPMAttr('actions.' + action + '.rpcs.' + renderer) !== null;
+  },
+
+  testImport : function(action, importName) {
+    return this.getBPMAttr('actions.' + action + '.imports.' + importName)
   },
 
   // provide a scheduler service
@@ -426,20 +450,6 @@ Pod.prototype = {
           );
       }
     }
-  },
-
-  _cdnFileSave : function(readableStream, filename, options, next) {
-    if ('function' === typeof persist) {
-      next = options;
-      options = {};
-    }
-  },
-
-  /**
-   * Returns a readable file stream
-   */
-  _cdnFileGet : function(fileStruct, next) {
-    next(false, fileStruct, fs.createReadStream(path.join(fileStruct.localpath)));
   },
 
   /**
@@ -464,9 +474,22 @@ Pod.prototype = {
     }
   },
 
+  _isVisibleHost : function(host, next, channel, whitelist) {
+    var self = this;
+    app.helper.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
+      if (err) {
+        if (channel) {
+          self.log(err, channel, 'error');
+        } else {
+          app.logmessage(err, 'error');
+        }
+      } else {
+        next(err, blacklisted, resolved);
+      }
+    });
+  },
 
   // ------------------------------ 3RD PARTY AUTHENTICATION HELPERS
-
 
   testCredentials : function(struct, next) {
     next(false);
@@ -894,50 +917,8 @@ Pod.prototype = {
       );
   },
 
-  // @todo deprecate
-  importGetConfig: function(action) {
-    return thsi.getActionConfig(action);
-  },
-
-  // @todo deprecate
-  importGetDefaults : function(action) {
-    return this.getActionConfigDefaults(action);
-  },
-
-  // @todo
-  _getRendererUrl: function(action, accountInfo) {
-    var ret;
-    if (accountInfo) {
-      ret = accountInfo.getDomain(true);
-    }
-
-    ret += '/rpc/pod/' + this.getName() + '/' + action + '/render';
-  },
-
-  setDao: function(dao) {
-    this._dao = dao;
-  },
-
-  getDao: function() {
-    return this._dao;
-  },
 
   // -------------------------------------------------- STREAMING AND POD DATA
-
-  _isVisibleHost : function(host, next, channel, whitelist) {
-    var self = this;
-    app.helper.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
-      if (err) {
-        if (channel) {
-          self.log(err, channel, 'error');
-        } else {
-          app.logmessage(err, 'error');
-        }
-      } else {
-        next(err, blacklisted, resolved);
-      }
-    });
-  },
 
   _httpGet: function(url, cb, headers, options) {
     var headerStruct = {
@@ -1053,6 +1034,22 @@ Pod.prototype = {
     request(params, function(error, res, body) {
       next(error, body, res ? res.headers : null);
     });
+  },
+
+  // -------------------------------------------------- CDN HELPERS
+
+  _cdnFileSave : function(readableStream, filename, options, next) {
+    if ('function' === typeof persist) {
+      next = options;
+      options = {};
+    }
+  },
+
+  /**
+   * Returns a readable file stream
+   */
+  _cdnFileGet : function(fileStruct, next) {
+    next(false, fileStruct, fs.createReadStream(path.join(fileStruct.localpath)));
   },
 
   /**
@@ -1459,11 +1456,122 @@ Pod.prototype = {
   },
 
   /**
-     * Gets an Actions description
+     * Auto installs singletons for the supplied user
      */
-  repr : function(action) {
-    return this.getActionDescription(action);
+
+  /**
+   *
+   * @todo DEPRECATE/REFACTOR - how/should channels be auto installed?
+   */
+  autoInstall : function(accountInfo, next) {
+    if (next) {
+      next(false);
+    } else {
+      return;
+    }
+
+    // DEPRECATED
+    var dao = this._dao,
+    channelTemplate,
+    s,
+    i = 0,
+    keyLen = 0,
+    errors = false,
+    installedKeys = [],
+    singles = false;
+
+    // check any singles exist
+    for (key in this._schemas) {
+      if (this._schemas[key].singleton || this._schemas[key].auto) {
+        singles = true;
+        keyLen++;
+      }
+    }
+
+    if (keyLen && singles) {
+      for (key in this._schemas) {
+        s = this._schemas[key];
+        if (s.singleton || s.auto) {
+          channelTemplate = {
+            name : s.title,
+            action : this.getName() + '.' + key,
+            config : {}, // singletons don't have config
+            note : s.description
+          };
+
+          // don't care about catching duplicates right now
+          model = dao.modelFactory('channel', channelTemplate, accountInfo );
+          dao.create(model, function(err, modelName, result) {
+            i++;
+            if (err) {
+              app.logmessage(err, 'error');
+              errors = true;
+            } else {
+              installedKeys.push(result.action);
+            }
+
+            if (i === keyLen && next) {
+              // errors are already be logged
+              next(errors, (errors ? 'There were errors' : installedKeys.toString()), result.owner_id );
+            }
+
+          }, accountInfo );
+        }
+      }
+    } else if (next) {
+      next(false, 'No Singletons to Install');
+    }
   },
+
+  /**
+   * Creates a json-schema-ish 'public' view of this Pod
+   */
+  describe : function() {
+    var self = this,
+      rpcs = this.getRPCs(),
+      schema = {
+        'name' : this.getName(),
+        'title' : this.getTitle(),
+        'description' : this.getDescription(),
+        'icon' : this.getIcon(),
+        'auth' : this.getAuth(),
+        'rpcs' : this.getRPCs(),
+        'url' : this.getBPMAttr('url'),
+        'actions' : this.getBPMAttr('actions')
+      },
+      authType = this.getAuth().strategy;
+
+    // attach auth binders
+    if (authType == 'oauth') {
+      schema.auth.scopes = this.getConfig().oauth.scopes || [];
+      schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' + this.getName() + '/auth';
+      schema.auth.authKeys = [];
+
+      for (var k in this.getConfig().oauth) {
+        if (this.getConfig().oauth.hasOwnProperty(k) && /^client/.test(k)) {
+          schema.auth.authKeys.push(k);
+        }
+      }
+
+    } else if (authType == 'issuer_token') {
+      schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this.getName() + '/set';
+      schema.auth.authMap = this.getAuthMap();
+    }
+
+    return schema;
+  },
+
+  // @todo deprecate
+  _testAndSet : function(key, srcObj, dstObj) {
+    if (undefined !== srcObj[key] && '' !== srcObj[key]) {
+      dstObj[key] = srcObj[key];
+    }
+  },
+
+
+  //
+  // --------------------------- DATA SERVICE HELPERS
+  //
 
   /**
     * Creates a trigger tracking record
@@ -1559,151 +1667,7 @@ Pod.prototype = {
     });
   },
 
-  /**
-     * Renders self
-     * @todo - stub
-     */
-  render: function(action, channel, accountInfo, cb) {
-    if (this.canRender(action)) {
 
-    } else {
-      cb(true, undefined, {}, 404);
-    }
-
-  },
-
-  _installSingleton : function(template, accountInfo, next) {
-    var installedKeys = [];
-    // don't care about catching duplicates right now
-    var model = dao.modelFactory('channel', channelTemplate, {
-      user : accountInfo
-    } );
-    dao.create(model, function(err, result) {
-      i++;
-      if (err) {
-        app.logmessage(err, 'error');
-        errors = true;
-      } else {
-        installedKeys.push(channelTemplate.action);
-      }
-
-      if (i === keyLen && next) {
-        // errors are already be logged
-        next(errors, (errors ? 'There were errors' : installedKeys.toString()) );
-      }
-
-    }, {
-      user : accountInfo
-    });
-  },
-
-  /**
-     * Auto installs singletons for the supplied user
-     */
-
-  /**
-   *
-   * @todo DEPRECATE/REFACTOR - how/should channels be auto installed?
-   */
-  autoInstall : function(accountInfo, next) {
-    var dao = this._dao,
-    channelTemplate,
-    s,
-    i = 0,
-    keyLen = 0,
-    errors = false,
-    installedKeys = [],
-    singles = false;
-
-    // check any singles exist
-    for (key in this._schemas) {
-      if (this._schemas[key].singleton || this._schemas[key].auto) {
-        singles = true;
-        keyLen++;
-      }
-    }
-
-    if (keyLen && singles) {
-      for (key in this._schemas) {
-        s = this._schemas[key];
-        if (s.singleton || s.auto) {
-          channelTemplate = {
-            name : s.title,
-            action : this.getName() + '.' + key,
-            config : {}, // singletons don't have config
-            note : s.description
-          };
-
-          // don't care about catching duplicates right now
-          model = dao.modelFactory('channel', channelTemplate, accountInfo );
-          dao.create(model, function(err, modelName, result) {
-            i++;
-            if (err) {
-              app.logmessage(err, 'error');
-              errors = true;
-            } else {
-              installedKeys.push(result.action);
-            }
-
-            if (i === keyLen && next) {
-              // errors are already be logged
-              next(errors, (errors ? 'There were errors' : installedKeys.toString()), result.owner_id );
-            }
-
-          }, accountInfo );
-        }
-      }
-    } else if (next) {
-      next(false, 'No Singletons to Install');
-    }
-  },
-
-  _rpcCache : null,
-  _rpcActionCache : {},
-
-  /**
-   * Creates a json-schema-ish 'public' view of this Pod
-   */
-  describe : function() {
-    var self = this,
-      rpcs = this.getRPCs(),
-      schema = {
-        'name' : this.getName(),
-        'title' : this.getTitle(),
-        'description' : this.getDescription(),
-        'icon' : this.getIcon(),
-        'auth' : this.getAuth(),
-        'rpcs' : this.getRPCs(),
-        'url' : this.getBPMAttr('url'),
-        'actions' : this.getBPMAttr('actions')
-      },
-      authType = this.getAuth().strategy;
-
-    // attach auth binders
-    if (authType == 'oauth') {
-      schema.auth.scopes = this.getConfig().oauth.scopes || [];
-      schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' + this.getName() + '/auth';
-      schema.auth.authKeys = [];
-
-      for (var k in this.getConfig().oauth) {
-        if (this.getConfig().oauth.hasOwnProperty(k) && /^client/.test(k)) {
-          schema.auth.authKeys.push(k);
-        }
-      }
-
-    } else if (authType == 'issuer_token') {
-      schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this.getName() + '/set';
-      schema.auth.authMap = this.getAuthMap();
-    }
-
-    return schema;
-  },
-
-  _testAndSet : function(key, srcObj, dstObj) {
-    if (undefined !== srcObj[key] && '' !== srcObj[key]) {
-      dstObj[key] = srcObj[key];
-    }
-  }
 }
 
 module.exports = Pod;
