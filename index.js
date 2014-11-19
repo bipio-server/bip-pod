@@ -1300,7 +1300,7 @@ Pod.prototype = {
     }
 
     if (this.isOAuth() && !sysImports.auth.oauth) {
-      this.oAuthGetToken(ownerId, this.name, function(err, oAuthToken, tokenSecret, authProfile) {
+      this.oAuthGetToken(ownerId, function(err, oAuthToken, tokenSecret, authProfile) {
         if (!err && oAuthToken) {
           sysImports.auth = {
             oauth : {
