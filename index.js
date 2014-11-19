@@ -400,14 +400,9 @@ Pod.prototype = {
     return ('poll' === tt || 'realtime' === tt);
   },
 
-  isRealTime : function(action) {
+  isRealtime : function(action) {
     var tt = this.getTriggerType(action);
     return ('realtime' === tt);
-  },
-
-  // @deprecate use isRealTime
-  isSocket : function(action) {
-    return this.isRealTime(action);
   },
 
   // action can render its own stored content
@@ -872,7 +867,7 @@ Pod.prototype = {
     self = this;
 
     this._oAuthRefresh(refreshToken, function(err, refreshStruct) {
-      if (!err) {
+      if (!err && refreshStruct) {
         self._dao.updateProperties(
           'account_auth',
           authModel.id,
