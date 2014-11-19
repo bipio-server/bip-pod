@@ -389,7 +389,7 @@ Pod.prototype = {
 
   // alias for getActionDescription
   repr : function() {
-    this.getActionDescription.apply(this, arguments);
+    return this.getActionDescription.apply(this, arguments);
   },
 
   // --------------------------- Compound tests and helpers
@@ -1410,7 +1410,7 @@ Pod.prototype = {
       }
 
     } catch (e) {
-      errStr = e.toString();
+      errStr = 'EXCEPT ' + e.toString();
     }
 
     if (errStr) {
