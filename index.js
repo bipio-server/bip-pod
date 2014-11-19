@@ -156,17 +156,17 @@ Pod.prototype = {
           : this.getName(),
         pStrategy = (auth.passport && auth.passport.strategy)
           ? auth.passport.strategy
-          : 'Strategy';
+          : 'Strategy',
+        passport = require(reqBase + '/node_modules/passport-' + pProvider);
 
       this._oAuthRegisterStrategy(
-        require(reqBase + '/node_modules/passport-' + pProvider)[pStrategy],
+        passport[pStrategy],
         self.getConfig().oauth
       );
 
       // cleanup
       delete auth.passport;
     }
-
 
     // add names
     _.each(this.getActionSchemas(), function(action, name) {
@@ -495,7 +495,7 @@ Pod.prototype = {
     var ok = false, accountId = req.remoteUser.user.id;
     res.contentType(DEFS.CONTENTTYPE_JSON);
 
-    if (this._authType == 'issuer_token') {
+    if (this.getAuthType() == 'issuer_token') {
       if (method == 'set') {
         app.logmessage('[' + accountId + '] ISSUER_TOKEN ' + this.getName() + ' SET' );
 
@@ -504,7 +504,7 @@ Pod.prototype = {
         // upsert oAuth document
         var filter = {
           owner_id : accountId,
-          type : this._authType,
+          type : this.getAuthType(),
           auth_provider : this.getName()
         };
 
@@ -513,7 +513,7 @@ Pod.prototype = {
           username : req.query.username,
           key : req.query.key,
           password : req.query.password,
-          type : this._authType,
+          type : this.getAuthType(),
           auth_provider : this.getName()
         };
 
@@ -567,6 +567,8 @@ Pod.prototype = {
           auth_provider : this.getName()
         }
 
+
+
         this._dao.removeFilter('account_auth', filter, function(err) {
           if (!err) {
             res.status(200).jsonp({});
@@ -606,7 +608,6 @@ Pod.prototype = {
       } else if (method == 'cb') {
         app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
         passport[authMethod](this.getName(), function(err, user) {
-
           // @todo - decouple from site.
           if (err) {
             app.logmessage(err, 'error');
@@ -632,7 +633,7 @@ Pod.prototype = {
         });
         ok = true;
       } else if (method == 'deauth') {
-        this.oAuthUnbind(podName, accountId, function(err) {
+        this.oAuthUnbind(accountId, function(err) {
           if (!err) {
             res.send(200);
           } else {
@@ -662,11 +663,11 @@ Pod.prototype = {
   },
 
   isOAuth : function() {
-    return 'oauth' === this._authType;
+    return 'oauth' === this.getAuthType();
   },
 
   isIssuerAuth : function() {
-    return 'issuer_token' === this._authType;
+    return 'issuer_token' === this.getAuthType();
   },
 
   _getPassword : function(ownerId, next) {
@@ -674,7 +675,7 @@ Pod.prototype = {
       podName = this.getName(),
       filter = {
         owner_id : ownerId,
-        type : this._authType,
+        type : this.getAuthType(),
         auth_provider : podName
       };
 
@@ -682,12 +683,12 @@ Pod.prototype = {
       if (!result || err) {
         if (err) {
           app.logmessage(err, 'error');
-          next(true, podName, self._authType, result );
+          next(true, podName, self.getAuthType(), result );
         } else {
-          next(false, podName, self._authType, result );
+          next(false, podName, self.getAuthType(), result );
         }
       } else {
-        next(false, podName,  self._authType, self._dao.modelFactory('account_auth', result));
+        next(false, podName,  self.getAuthType(), self._dao.modelFactory('account_auth', result));
       }
     });
 
@@ -701,11 +702,11 @@ Pod.prototype = {
     podName = this.getName(),
     filter = {
       owner_id : owner_id,
-      type : this._authType,
+      type : this.getAuthType(),
       oauth_provider : this.getName()
     };
     this._dao.find('account_auth', filter, function(err, result) {
-      next(err, podName, self._authType, result);
+      next(err, podName, filter.type, result);
     });
   },
 
