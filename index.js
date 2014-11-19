@@ -168,6 +168,11 @@ Pod.prototype = {
     }
 
 
+    // add names
+    _.each(this.getActionSchemas(), function(action, name) {
+      action.name = name;
+    });
+
     // bind pod renderers
     var rpcs = this.getRPCs();
     _.each(rpcs, function(rpc, key) {
@@ -249,15 +254,26 @@ Pod.prototype = {
    * @param string path JSONPath
    * @returns mixed result or null
    */
+  _attrCache : {},
   getBPMAttr : function (path) {
-    var result = jsonPath.eval(this._bpm, path);
-    if (result.length === 1) {
-      return result[0];
-    } else if (result.length) {
-      return result;
-    } else {
-      return null;
+    var val;
+    if (true || !this._attrCache[path]) {
+      var result = jsonPath.eval(this._bpm, path);
+      if (result.length === 1) {
+        val = result[0];
+      } else if (result.length) {
+        val = result;
+      } else {
+        val = null;
+      }
+      this._attrCache[path] = val;
     }
+
+    return this._attrCache[path];
+  },
+
+  getSchema : function(action) {
+    return this._bpm;
   },
 
   // --------------------------- BPM path accessors
@@ -345,27 +361,12 @@ Pod.prototype = {
     return this.getBPMAttr('actions.' + action + '.config');
   },
 
-  // @todo deprecate for getActionConfig
-  importGetConfig: function(action) {
-    return thsi.getActionConfig(action);
-  },
-
   getActionExports : function(action) {
     return this.getBPMAttr('actions.' + action + '.exports');
   },
 
-  // @deprecate for getActionExports
-  getExports : function(action) {
-    return this.getActionExports(action);
-  },
-
   getActionImports : function(action) {
     return this.getBPMAttr('actions.' + action + '.imports');
-  },
-
-  // @deprecate for getActionImports
-  getImports: function(action) {
-    return getActionImports(action);
   },
 
   getActionConfigDefaults : function(action) {
@@ -381,25 +382,9 @@ Pod.prototype = {
     return defaults;
   },
 
-  // @todo deprecate for getActionConfigDefaults
-  importGetDefaults : function(action) {
-    return this.getActionConfigDefaults(action);
-  },
-
   // description of the action
   getActionDescription : function(action) {
     return this.getAction(action).description;
-  },
-
-  // @todo deprecate for explicit getSchema + getActionSchema
-  getSchema : function(action) {
-    var schema;
-    if (action) {
-      return this.getAction(action);
-
-    } else {
-      return this._bpm;
-    }
   },
 
   // --------------------------- Compound tests and helpers
@@ -432,6 +417,21 @@ Pod.prototype = {
 
   testImport : function(action, importName) {
     return this.getBPMAttr('actions.' + action + '.imports.' + importName)
+  },
+
+  listActions : function() {
+    return _.where(this.getActionSchemas(), { trigger : 'invoke'} );
+  },
+
+  listEmitters : function() {
+    var emitters = _.filter(this.getActionSchemas(), function(action, key) {
+      console.log(key, action.trigger, (action.trigger !== 'invoke'))
+      return (action.trigger !== 'invoke');
+    });
+
+    console.log('matched emitters', emitters);
+    return emitters;
+//    return this.getBPMAttr('.actions[?(@.trigger!="invoke")]');
   },
 
   // provide a scheduler service
