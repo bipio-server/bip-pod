@@ -387,6 +387,11 @@ Pod.prototype = {
     return this.getAction(action).description;
   },
 
+  // alias for getActionDescription
+  repr : function() {
+    this.getActionDescription.apply(this, arguments);
+  },
+
   // --------------------------- Compound tests and helpers
 
   // invoker for this action can generate its own content (periodically)
@@ -424,14 +429,10 @@ Pod.prototype = {
   },
 
   listEmitters : function() {
-    var emitters = _.filter(this.getActionSchemas(), function(action, key) {
-      console.log(key, action.trigger, (action.trigger !== 'invoke'))
+//    return this.getBPMAttr('.actions[?(@.trigger!="invoke")]');
+    return _.filter(this.getActionSchemas(), function(action, key) {
       return (action.trigger !== 'invoke');
     });
-
-    console.log('matched emitters', emitters);
-    return emitters;
-//    return this.getBPMAttr('.actions[?(@.trigger!="invoke")]');
   },
 
   // provide a scheduler service
