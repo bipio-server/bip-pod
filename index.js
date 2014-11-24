@@ -310,10 +310,7 @@ Pod.prototype = {
     }
 
     // temporary file management bridge
-    this.$resource.file = {
-      get : this._cdnFileGet,
-      save : this._cdnFileSave
-    }
+    this.$resource.file = cdn;
 
     this.$resource._isVisibleHost = this._isVisibleHost;
 
