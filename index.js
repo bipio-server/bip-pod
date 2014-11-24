@@ -590,7 +590,7 @@ Pod.prototype = {
         if (channel) {
           self.log(err, channel, 'error');
         } else {
-          self._logger.apply(self, err, 'error');
+          self._logger.call(self, err, 'error');
         }
       } else {
         next(err, blacklisted, resolved);
@@ -613,7 +613,7 @@ Pod.prototype = {
 
     if (this.getAuthType() == 'issuer_token') {
       if (method == 'set') {
-        self._logger.apply(self, '[' + accountId + '] ISSUER_TOKEN ' + this.getName() + ' SET' );
+        self._logger.call(self, '[' + accountId + '] ISSUER_TOKEN ' + this.getName() + ' SET' );
 
         // upsert oAuth document
         var filter = {
@@ -643,14 +643,14 @@ Pod.prototype = {
             // create a dao helper for filter -> model upsert.
             self._dao.find('account_auth', filter, function(err, result) {
               if (err) {
-                self._logger.apply(self, err, 'error');
+                self._logger.call(self, err, 'error');
                 res.send(500);
               } else {
                 // update
                 if (result) {
                   self._dao.update('account_auth', result.id, struct, function(err, result) {
                     if (err) {
-                      self._logger.apply(self, err, 'error');
+                      self._logger.call(self, err, 'error');
                       res.status(500).jsonp({});
                     } else {
                       res.status(200).jsonp({});
@@ -660,7 +660,7 @@ Pod.prototype = {
                   // create
                   self._dao.create(model, function(err, result) {
                     if (err) {
-                      self._logger.apply(self, err, 'error');
+                      self._logger.call(self, err, 'error');
                       res.status(500).jsonp({});
                     } else {
 //                      self.autoInstall(req.remoteUser);
@@ -687,7 +687,7 @@ Pod.prototype = {
           if (!err) {
             res.status(200).jsonp({});
           } else {
-            self._logger.apply(self, err, 'error');
+            self._logger.call(self, err, 'error');
             res.status(500).jsonp({});
           }
         });
@@ -714,36 +714,36 @@ Pod.prototype = {
     if (false !== this._oAuthRegistered) {
       // invoke the passport oauth handler
       if (method == 'auth') {
-        self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
+        self._logger.call(self, '[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
 
         passport[authMethod](this.getName(), this._oAuthConfig)(req, res);
         ok = true;
 
       } else if (method == 'cb') {
-        self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
+        self._logger.call(self, '[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
         passport[authMethod](this.getName(), function(err, user) {
           // @todo - decouple from site.
           if (err) {
-            self._logger.apply(self, err, 'error');
+            self._logger.call(self, err, 'error');
             res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
 
           } else if (!user && req.query.error_reason && req.query.error_reason == 'user_denied') {
-            self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' CANCELLED' );
+            self._logger.call(self, '[' + accountId + '] OAUTH ' + podName + ' CANCELLED' );
             res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
 
           } else if (!user) {
-            self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' UNKNOWN ERROR' );
+            self._logger.call(self, '[' + accountId + '] OAUTH ' + podName + ' UNKNOWN ERROR' );
             res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
 
           } else {
-            self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' AUTHORIZED' );
+            self._logger.call(self, '[' + accountId + '] OAUTH ' + podName + ' AUTHORIZED' );
             // install singletons
 //            self.autoInstall(accountInfo);
             res.redirect(emitterHost + '/emitter/oauthcb?status=accepted&provider=' + podName);
           }
         })(req, res, function(err) {
           res.send(500);
-          self._logger.apply(self, err, 'error');
+          self._logger.call(self, err, 'error');
         });
         ok = true;
       } else if (method == 'deauth') {
@@ -751,7 +751,7 @@ Pod.prototype = {
           if (!err) {
             res.send(200);
           } else {
-            self._logger.apply(self, err, 'error');
+            self._logger.call(self, err, 'error');
             res.send(500);
           }
         });
@@ -796,7 +796,7 @@ Pod.prototype = {
     this._dao.find('account_auth', filter, function(err, result) {
       if (!result || err) {
         if (err) {
-          self._logger.apply(self, err, 'error');
+          self._logger.call(self, err, 'error');
           next(true, podName, self.getAuthType(), result );
         } else {
           next(false, podName, self.getAuthType(), result );
@@ -971,7 +971,7 @@ Pod.prototype = {
             );
         } else {
           if (err) {
-            self._logger.apply(self, err, 'error');
+            self._logger.call(self, err, 'error');
           }
           next(err, result);
         }
@@ -994,9 +994,9 @@ Pod.prototype = {
           },
           function(err) {
             if (!err) {
-              self._logger.apply(self, self.getName() + ':OAuthRefresh:' + authModel.owner_id);
+              self._logger.call(self, self.getName() + ':OAuthRefresh:' + authModel.owner_id);
             } else {
-              self._logger.apply(self, err, 'error');
+              self._logger.call(self, err, 'error');
             }
           }
           );
@@ -1020,9 +1020,9 @@ Pod.prototype = {
           next(false, authRecord.getUsername(), authRecord.getPassword(), authRecord.getKey());
         } else {
           if (err) {
-            self._logger.apply(self, err, 'error');
+            self._logger.call(self, err, 'error');
           } else if (!result) {
-            self._logger.apply(self, 'no result for owner_id:' + owner_id + ' provider:' + this.getName(), 'error');
+            self._logger.call(self, 'no result for owner_id:' + owner_id + ' provider:' + this.getName(), 'error');
           }
           next(err, result);
         }
@@ -1175,25 +1175,25 @@ Pod.prototype = {
 
     fs.exists(outLock, function(exists) {
       if (exists) {
-        self._logger.apply(self,  self.getName() + ' LOCKED, skipping [' + outFile + ']');
+        self._logger.call(self,  self.getName() + ' LOCKED, skipping [' + outFile + ']');
 
       } else {
-        self._logger.apply(self,  self.getName() + ' writing to [' + outFile + ']');
+        self._logger.call(self,  self.getName() + ' writing to [' + outFile + ']');
         fs.exists(outFile, function(exists) {
           if (exists) {
             fs.stat(outFile, function(err, stats) {
               if (err) {
-                self._logger.apply(self, err, 'error');
+                self._logger.call(self, err, 'error');
                 next(true);
               } else {
-                self._logger.apply(self,  self.getName() + ' CACHED, skipping [' + outFile + ']');
+                self._logger.call(self,  self.getName() + ' CACHED, skipping [' + outFile + ']');
                 fileStruct.size = stats.size;
                 cb(false, exports, fileStruct);
               }
             });
           } else {
             fs.open(outLock, 'w', function() {
-              self._logger.apply(self,  self.getName() + ' FETCH [' + url + '] > [' + outFile + ']');
+              self._logger.call(self,  self.getName() + ' FETCH [' + url + '] > [' + outFile + ']');
               request.get(
                 url,
                 function(exports, fileStruct) {
@@ -1202,10 +1202,10 @@ Pod.prototype = {
                     if (!error && res.statusCode == 200) {
                       fs.stat(outFile, function(err, stats) {
                         if (err) {
-                          self._logger.apply(self, self.getName() + ' ' + err, 'error');
+                          self._logger.call(self, self.getName() + ' ' + err, 'error');
                           next(true);
                         } else {
-                          self._logger.apply(self,  self.getName() + ' done [' + outFile + ']');
+                          self._logger.call(self,  self.getName() + ' done [' + outFile + ']');
                           fileStruct.size = stats.size;
                           cb(false, exports, fileStruct);
                         }
@@ -1617,7 +1617,7 @@ Pod.prototype = {
           dao.create(model, function(err, modelName, result) {
             i++;
             if (err) {
-              self._logger.apply(this, err, 'error');
+              self._logger.call(self, err, 'error');
               errors = true;
             } else {
               installedKeys.push(result.action);
