@@ -26,13 +26,93 @@ var passport = require('passport'),
   moment = require('moment'),
   util = require('util'),
   fs = require('fs'),
-  jsonPath = require('jsonpath'),
+  JSONPath = require('jsonpath'),
   extend = require('extend');
   uuid = require('node-uuid'),
   mime = require('mime'),
   cron = require('cron'),
   _ = require('underscore'),
+  tldtools = require('tldtools'),
+  ipaddr = require('ipaddr.js'),
+  dns = require('dns'),
   validator = require('validator');
+
+// utility resources
+var helper = {
+  isObject : function(obj) {
+    return Object.prototype.toString.call(obj) == "[object Object]";
+  },
+
+  toUTC: function(date) {
+    return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
+  },
+
+  now: function() {
+    return new Date();
+  },
+
+  nowUTC: function() {
+    return helper.toUTC(this.now());
+  },
+
+  nowUTCSeconds: function() {
+    var d = helper.toUTC(helper.now());
+
+    // @todo looks like a bug in datejs, no seconds for getTime?
+    seconds = d.getSeconds() + (d.getMinutes() * 60) + (d.getHours() * 60 * 60);
+    return (d.getTime() + seconds);
+  },
+
+    // Returns all ipv4/6 A records for a host
+  resolveHost : function(host, next) {
+    var tokens = tldtools.extract(host),
+      resolvingHost;
+    if (ipaddr.IPv4.isValid(host) || ipaddr.IPv6.isValid(host) ) {
+      next(false, [ host ], host);
+    } else {
+      resolvingHost = tokens.inspect.getDomain() || tokens.domain;
+      dns.resolve(resolvingHost, function(err, aRecords) {
+        next(err, aRecords, resolvingHost );
+      });
+    }
+  },
+
+  JSONPath : function(obj, path) {
+    return JSONPath.eval(obj, path);
+  },
+
+  streamToHash : function(readStream, next) {
+    var hash = crypto.createHash('sha1');
+    hash.setEncoding('hex');
+
+    readStream.on('end', function() {
+        hash.end();
+        next(false, hash.read());
+    });
+
+    readStream.on('error', function(err) {
+      next(err);
+    });
+
+    readStream.pipe(hash);
+  },
+
+  streamToBuffer : function(readStream, next) {
+    var buffers = [];
+    readStream.on('data', function(chunk) {
+        buffers.push(chunk);
+    });
+
+    readStream.on('error', function(err) {
+        next(err);
+    });
+
+    readStream.on('end', function() {
+      next(false, Buffer.concat(buffers));
+
+    });
+  }
+}
 
 // pod required fields
 var requiredMeta = [
@@ -43,6 +123,8 @@ var requiredMeta = [
 
 // constructor
 function Pod(metadata, init) {
+
+  metadata = metadata || {};
 
   // oauth provider token refresh method
   // @todo deprecate for an implementation of oAuthRefresh in pod
@@ -74,6 +156,8 @@ function Pod(metadata, init) {
   // options
   this.options = {
     baseURL : '',
+    blacklist : [],
+    config : {}
   };
 
   this._oAuthRegistered = false;
@@ -111,8 +195,12 @@ Pod.prototype = {
       this.setConfig(options.config);
     }
 
-    if (dao && !this._dao) {
+    if (dao) {
       this._dao = dao;
+    }
+
+    if (logger) {
+      this._logger = logger;
     }
 
     // register generic tracker
@@ -201,9 +289,7 @@ Pod.prototype = {
     this.$resource.mime = mime;
     this.$resource.uuid = uuid;
     this.$resource.sanitize = validator.sanitize;
-    this.$resource.htmlNormalize = function() {
-      return app.helper.naturalize.apply(app.helper, arguments);
-    };
+
     this.$resource.log = this.log;
     this.$resource.getDataSourceName = function(dsName) {
       return 'pod_' + self.getName().replace(/-/g, '_') + '_' + dsName;
@@ -219,8 +305,8 @@ Pod.prototype = {
     this.$resource._httpStreamToFile = this._httpStreamToFile;
 
     this.$resource.stream = {
-      toHash : app.helper.streamToHash,
-      toBuffer : app.helper.streamToBuffer
+      toHash : helper.streamToHash,
+      toBuffer : helper.streamToBuffer
     }
 
     // temporary file management bridge
@@ -250,6 +336,33 @@ Pod.prototype = {
     }
   },
 
+  // tests whether host is in blacklist
+  hostBlacklisted : function(host, whitelist, next) {
+    var blacklist = this.options.blacklist;
+
+    helper.resolveHost(host, function(err, aRecords, resolvedHost) {
+      var inBlacklist = false;
+      if (!err) {
+        if (whitelist) {
+          if (_.intersection(aRecords, whitelist).length ) {
+            next(err, [], aRecords);
+            return;
+          } else {
+            for (var i = 0; i < whitelist.length; i++) {
+              if (resolvedHost === whitelist[i]) {
+                next(err, [], aRecords);
+                return;
+              }
+            }
+          }
+        }
+
+        inBlacklist = _.intersection(aRecords, blacklist)
+      }
+      next(err, inBlacklist, aRecords);
+    });
+  },
+
   /**
    * Retrieves matching elements from the manfiest with a JSON Path
    * When no element found, returns null
@@ -261,7 +374,7 @@ Pod.prototype = {
   getBPMAttr : function (path) {
     var val;
     if (true || !this._attrCache[path]) {
-      var result = jsonPath.eval(this._bpm, path);
+      var result = helper.JSONPath(this._bpm, path);
       if (result.length === 1) {
         val = result[0];
       } else if (result.length) {
@@ -439,7 +552,7 @@ Pod.prototype = {
 
     if (this.$resource.cron) {
       if (!this.crons[id]) {
-        app.logmessage('POD:Registering Cron:' + self.getName() + ':' + id);
+        self._logger.call(self, 'POD:Registering Cron:' + self.getName() + ':' + id);
           self.crons[id] = new self.$resource.cron.CronJob(
             period,
             callback,
@@ -455,15 +568,15 @@ Pod.prototype = {
      * Logs a message
      */
   log : function(message, channel, level) {
-    if (app.helper.isObject(message)) {
-      app.logmessage(
+    if (helper.isObject(message)) {
+      this._logger.call(this,
         channel.action
         + ':'
         + (channel.owner_id ? channel.owner_id : 'system'),
         level);
-      app.logmessage(message, level);
+      this._logger.call(this, message, level);
     } else {
-      app.logmessage(
+      this._logger.call(this,
         channel.action
         + ':'
         + (channel.owner_id ? channel.owner_id : 'system'),
@@ -475,12 +588,12 @@ Pod.prototype = {
 
   _isVisibleHost : function(host, next, channel, whitelist) {
     var self = this;
-    app.helper.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
+    self.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
       if (err) {
         if (channel) {
           self.log(err, channel, 'error');
         } else {
-          app.logmessage(err, 'error');
+          self._logger.apply(self, err, 'error');
         }
       } else {
         next(err, blacklisted, resolved);
@@ -495,14 +608,15 @@ Pod.prototype = {
   },
 
   issuerTokenRPC : function(method, req, res) {
-    var ok = false, accountId = req.remoteUser.user.id;
+    var ok = false,
+      accountId = req.remoteUser.user.id;
+      self = this;
+
     res.contentType(DEFS.CONTENTTYPE_JSON);
 
     if (this.getAuthType() == 'issuer_token') {
       if (method == 'set') {
-        app.logmessage('[' + accountId + '] ISSUER_TOKEN ' + this.getName() + ' SET' );
-
-        var self = this;
+        self._logger.apply(self, '[' + accountId + '] ISSUER_TOKEN ' + this.getName() + ' SET' );
 
         // upsert oAuth document
         var filter = {
@@ -532,14 +646,14 @@ Pod.prototype = {
             // create a dao helper for filter -> model upsert.
             self._dao.find('account_auth', filter, function(err, result) {
               if (err) {
-                app.logmessage(err, 'error');
+                self._logger.apply(self, err, 'error');
                 res.send(500);
               } else {
                 // update
                 if (result) {
                   self._dao.update('account_auth', result.id, struct, function(err, result) {
                     if (err) {
-                      app.logmessage(err, 'error');
+                      self._logger.apply(self, err, 'error');
                       res.status(500).jsonp({});
                     } else {
                       res.status(200).jsonp({});
@@ -549,7 +663,7 @@ Pod.prototype = {
                   // create
                   self._dao.create(model, function(err, result) {
                     if (err) {
-                      app.logmessage(err, 'error');
+                      self._logger.apply(self, err, 'error');
                       res.status(500).jsonp({});
                     } else {
 //                      self.autoInstall(req.remoteUser);
@@ -576,7 +690,7 @@ Pod.prototype = {
           if (!err) {
             res.status(200).jsonp({});
           } else {
-            app.logmessage(err, 'error');
+            self._logger.apply(self, err, 'error');
             res.status(500).jsonp({});
           }
         });
@@ -603,36 +717,36 @@ Pod.prototype = {
     if (false !== this._oAuthRegistered) {
       // invoke the passport oauth handler
       if (method == 'auth') {
-        app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
+        self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' AUTH REQUEST' );
 
         passport[authMethod](this.getName(), this._oAuthConfig)(req, res);
         ok = true;
 
       } else if (method == 'cb') {
-        app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
+        self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' AUTH CALLBACK ' + authMethod );
         passport[authMethod](this.getName(), function(err, user) {
           // @todo - decouple from site.
           if (err) {
-            app.logmessage(err, 'error');
+            self._logger.apply(self, err, 'error');
             res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
 
           } else if (!user && req.query.error_reason && req.query.error_reason == 'user_denied') {
-            app.logmessage('[' + accountId + '] OAUTH ' + podName + ' CANCELLED' );
+            self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' CANCELLED' );
             res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
 
           } else if (!user) {
-            app.logmessage('[' + accountId + '] OAUTH ' + podName + ' UNKNOWN ERROR' );
+            self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' UNKNOWN ERROR' );
             res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
 
           } else {
-            app.logmessage('[' + accountId + '] OAUTH ' + podName + ' AUTHORIZED' );
+            self._logger.apply(self, '[' + accountId + '] OAUTH ' + podName + ' AUTHORIZED' );
             // install singletons
 //            self.autoInstall(accountInfo);
             res.redirect(emitterHost + '/emitter/oauthcb?status=accepted&provider=' + podName);
           }
         })(req, res, function(err) {
           res.send(500);
-          app.logmessage(err, 'error');
+          self._logger.apply(self, err, 'error');
         });
         ok = true;
       } else if (method == 'deauth') {
@@ -640,7 +754,7 @@ Pod.prototype = {
           if (!err) {
             res.send(200);
           } else {
-            app.logmessage(err, 'error');
+            self._logger.apply(self, err, 'error');
             res.send(500);
           }
         });
@@ -685,7 +799,7 @@ Pod.prototype = {
     this._dao.find('account_auth', filter, function(err, result) {
       if (!result || err) {
         if (err) {
-          app.logmessage(err, 'error');
+          self._logger.apply(self, err, 'error');
           next(true, podName, self.getAuthType(), result );
         } else {
           next(false, podName, self.getAuthType(), result );
@@ -731,12 +845,14 @@ Pod.prototype = {
       localConfig[key] = config[key];
     }
 
-    this._oAuthConfig = {
+    self._oAuthConfig = {
       scope : config.scopes
     };
 
     if (config.extras) {
-      app.helper.copyProperties(config.extras, this._oAuthConfig);
+      _.each(config.extras, function(val, key) {
+        self._oAuthConfig[key] = val;
+      });
     }
 
     this._oAuthRegistered = true;
@@ -858,7 +974,7 @@ Pod.prototype = {
             );
         } else {
           if (err) {
-            app.logmessage(err, 'error');
+            self._logger.apply(self, err, 'error');
           }
           next(err, result);
         }
@@ -881,9 +997,9 @@ Pod.prototype = {
           },
           function(err) {
             if (!err) {
-              app.logmessage(self.getName() + ':OAuthRefresh:' + authModel.owner_id);
+              self._logger.apply(self, self.getName() + ':OAuthRefresh:' + authModel.owner_id);
             } else {
-              app.logmessage(err, 'error');
+              self._logger.apply(self, err, 'error');
             }
           }
           );
@@ -907,9 +1023,9 @@ Pod.prototype = {
           next(false, authRecord.getUsername(), authRecord.getPassword(), authRecord.getKey());
         } else {
           if (err) {
-            app.logmessage(err, 'error');
+            self._logger.apply(self, err, 'error');
           } else if (!result) {
-            app.logmessage('no result for owner_id:' + owner_id + ' provider:' + this.getName(), 'error');
+            self._logger.apply(self, 'no result for owner_id:' + owner_id + ' provider:' + this.getName(), 'error');
           }
           next(err, result);
         }
@@ -1062,25 +1178,25 @@ Pod.prototype = {
 
     fs.exists(outLock, function(exists) {
       if (exists) {
-        app.logmessage( self.getName() + ' LOCKED, skipping [' + outFile + ']');
+        self._logger.apply(self,  self.getName() + ' LOCKED, skipping [' + outFile + ']');
 
       } else {
-        app.logmessage( self.getName() + ' writing to [' + outFile + ']');
+        self._logger.apply(self,  self.getName() + ' writing to [' + outFile + ']');
         fs.exists(outFile, function(exists) {
           if (exists) {
             fs.stat(outFile, function(err, stats) {
               if (err) {
-                app.logmessage(err, 'error');
+                self._logger.apply(self, err, 'error');
                 next(true);
               } else {
-                app.logmessage( self.getName() + ' CACHED, skipping [' + outFile + ']');
+                self._logger.apply(self,  self.getName() + ' CACHED, skipping [' + outFile + ']');
                 fileStruct.size = stats.size;
                 cb(false, exports, fileStruct);
               }
             });
           } else {
             fs.open(outLock, 'w', function() {
-              app.logmessage( self.getName() + ' FETCH [' + url + '] > [' + outFile + ']');
+              self._logger.apply(self,  self.getName() + ' FETCH [' + url + '] > [' + outFile + ']');
               request.get(
                 url,
                 function(exports, fileStruct) {
@@ -1089,10 +1205,10 @@ Pod.prototype = {
                     if (!error && res.statusCode == 200) {
                       fs.stat(outFile, function(err, stats) {
                         if (err) {
-                          app.logmessage(self.getName() + ' ' + err, 'error');
+                          self._logger.apply(self, self.getName() + ' ' + err, 'error');
                           next(true);
                         } else {
-                          app.logmessage( self.getName() + ' done [' + outFile + ']');
+                          self._logger.apply(self,  self.getName() + ' done [' + outFile + ']');
                           fileStruct.size = stats.size;
                           cb(false, exports, fileStruct);
                         }
@@ -1431,7 +1547,7 @@ Pod.prototype = {
 
     if (this.actions[action] && (this.actions[action].rpc || 'invoke' === method)) {
       if ('invoke' === method) {
-        var imports = app.helper.pasteurize((req.method === 'GET') ? req.query : req.body);
+        var imports = (req.method === 'GET' ? req.query : req.body);
 
         // @todo add files support
         this.actions[action].invoke(imports, channel, sysImports, [], function(err, exports) {
@@ -1504,7 +1620,7 @@ Pod.prototype = {
           dao.create(model, function(err, modelName, result) {
             i++;
             if (err) {
-              app.logmessage(err, 'error');
+              self._logger.apply(this, err, 'error');
               errors = true;
             } else {
               installedKeys.push(result.action);
@@ -1577,7 +1693,7 @@ Pod.prototype = {
     * Creates a trigger tracking record
     */
   trackingStart : function(channel, accountInfo, fromNow, next) {
-    var nowTime = app.helper.nowUTCSeconds(),
+    var nowTime = helper.nowUTCSeconds(),
     trackingStruct = {
       owner_id : channel.owner_id,
       created : nowTime,
@@ -1607,8 +1723,9 @@ Pod.prototype = {
       channel_id : channel.id,
       owner_id : channel.owner_id
     },
+    self = this,
     props = {
-      last_poll : app.helper.nowUTCSeconds()
+      last_poll : helper.nowUTCSeconds()
     }
 
     this._dao.updateColumn(
@@ -1617,7 +1734,7 @@ Pod.prototype = {
       props,
       function(err) {
         if (err) {
-          app.log(err, 'error');
+          self.log(err, 'error');
         }
         next(err, props.last_poll);
       }
@@ -1639,7 +1756,7 @@ Pod.prototype = {
   dupFilter : function(obj, key, channel, sysImports, next) {
     var self = this,
       modelName = this.getDataSourceName('dup'),
-      objVal = app.helper.jsonPath(obj, key),
+      objVal = helper.JSONPath(obj, key),
       filter = {
         owner_id : channel.owner_id,
         channel_id : channel.id,
@@ -1647,7 +1764,7 @@ Pod.prototype = {
         value : objVal
       },
       props = {
-        last_update : app.helper.nowUTCSeconds(),
+        last_update : helper.nowUTCSeconds(),
         owner_id : channel.owner_id,
         channel_id : channel.id,
         bip_id : sysImports.bip.id,
