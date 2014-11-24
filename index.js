@@ -71,6 +71,11 @@ function Pod(metadata, init) {
   // crons
   this.crons = {};
 
+  // options
+  this.options = {
+    baseURL : '',
+  };
+
   this._oAuthRegistered = false;
 }
 
@@ -81,9 +86,10 @@ Pod.prototype = {
      *
      * @param dao {Object} DAO.
      * @param config {Object} Pod Config
+     * @param options {Object} system options
      *
      */
-  init : function(podName, dao, config) {
+  init : function(podName, dao, cdn, logger, options) {
     var reqBase = __dirname + '/../bip-pod-' + podName ;
 
     this._bpm = require(reqBase + '/bpm.json');
@@ -101,17 +107,16 @@ Pod.prototype = {
       model;
 
     // set stored config
-    if (config) {
-      this.setConfig(config);
+    if (options.config) {
+      this.setConfig(options.config);
     }
 
-    if (!this._dao) {
+    if (dao && !this._dao) {
       this._dao = dao;
     }
 
     // register generic tracker
     var tracker = require('./models/channel_pod_tracking');
-    extend(true, tracker, Object.create(dao.getModelPrototype()));
     this._dao.registerModel(tracker);
 
     // create pod tracking container for duplicate entities
@@ -119,7 +124,6 @@ Pod.prototype = {
       var podDupTracker = _.clone(require('./models/dup'));
 
       podDupTracker.entityName = this.getDataSourceName(podDupTracker.entityName);
-      extend(true, podDupTracker, Object.create(dao.getModelPrototype()));
 
       this._dao.registerModel(podDupTracker);
 
@@ -143,7 +147,6 @@ Pod.prototype = {
           )
         );
 
-        extend(true, dataSource, Object.create(dao.getModelPrototype()));
         this._dao.registerModel(dataSource);
       }
     }
@@ -176,7 +179,7 @@ Pod.prototype = {
     // bind pod renderers
     var rpcs = this.getRPCs();
     _.each(rpcs, function(rpc, key) {
-      rpc._href = self._dao.getBaseUrl() + '/rpc/pod/' + self.getName() + '/render/' + key;
+      rpc._href = self.options.baseUrl + '/rpc/pod/' + self.getName() + '/render/' + key;
 
       if (!rpc.method) {
         rpc.method = 'GET';
@@ -456,14 +459,14 @@ Pod.prototype = {
       app.logmessage(
         channel.action
         + ':'
-        + channel.owner_id,
+        + (channel.owner_id ? channel.owner_id : 'system'),
         level);
       app.logmessage(message, level);
     } else {
       app.logmessage(
         channel.action
         + ':'
-        + channel.owner_id
+        + (channel.owner_id ? channel.owner_id : 'system'),
         + ':'
         + message,
         level);
@@ -1256,8 +1259,7 @@ Pod.prototype = {
   // tries to drop any duplicates from db
   _dupTeardown : function(channel, next) {
     var filter = {
-        channel_id : channel.id,
-        owner_id : channel.owner_id
+        channel_id : channel.id
       },
       modelName = this.getDataSourceName('dup');
 
@@ -1460,6 +1462,7 @@ Pod.prototype = {
    *
    * @todo DEPRECATE/REFACTOR - how/should channels be auto installed?
    */
+   /*
   autoInstall : function(accountInfo, next) {
     if (next) {
       next(false);
@@ -1519,6 +1522,7 @@ Pod.prototype = {
       next(false, 'No Singletons to Install');
     }
   },
+  */
 
   /**
    * Creates a json-schema-ish 'public' view of this Pod
@@ -1541,7 +1545,7 @@ Pod.prototype = {
     // attach auth binders
     if (authType == 'oauth') {
       schema.auth.scopes = this.getConfig().oauth.scopes || [];
-      schema.auth._href = this._dao.getBaseUrl() + '/rpc/oauth/' + this.getName() + '/auth';
+      schema.auth._href = self.options.baseUrl + '/rpc/oauth/' + this.getName() + '/auth';
       schema.auth.authKeys = [];
 
       for (var k in this.getConfig().oauth) {
@@ -1551,7 +1555,7 @@ Pod.prototype = {
       }
 
     } else if (authType == 'issuer_token') {
-      schema.auth._href = this._dao.getBaseUrl() + '/rpc/issuer_token/' +  this.getName() + '/set';
+      schema.auth._href = self.options.baseUrl + '/rpc/issuer_token/' +  this.getName() + '/set';
       schema.auth.authMap = this.getAuthMap();
     }
 
@@ -1564,7 +1568,6 @@ Pod.prototype = {
       dstObj[key] = srcObj[key];
     }
   },
-
 
   //
   // --------------------------- DATA SERVICE HELPERS
