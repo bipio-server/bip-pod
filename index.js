@@ -170,6 +170,9 @@ function Pod(metadata, init) {
 }
 
 Pod.prototype = {
+  getPodBase : function(podName) {
+    return __dirname + '/../bip-pod-' + podName;
+  },
   /**
      * make system resources available to the pod. Invoked by the Pod registrar
      * in the Channels model when bootstrapping.
@@ -180,7 +183,7 @@ Pod.prototype = {
      *
      */
   init : function(podName, dao, cdn, logger, options) {
-    var reqBase = __dirname + '/../bip-pod-' + podName,
+    var reqBase = this.getPodBase(podName),
       self = this;
 
     this._bpm = require(reqBase + '/bpm.json');
@@ -273,11 +276,6 @@ Pod.prototype = {
       delete auth.passport;
     }
 
-    // add names
-    _.each(this.getActionSchemas(), function(action, name) {
-      action.name = name;
-    });
-
     // bind pod renderers
     var rpcs = this.getRPCs();
     _.each(rpcs, function(rpc, key) {
@@ -333,14 +331,27 @@ Pod.prototype = {
       this.$resource.cron = cron;
     }
 
+    // --------- BIND ACTIONS
+
     // bind actions
     var action;
-    for (i = 0; i < this._actionProtos.length; i++) {
-      action = new this._actionProtos[i](this.getConfig(), this);
-      action.$resource = this.$resource;
-      action.pod = this;
-      this.actions[action.name] = action;
-    }
+    _.each(this.getActionSchemas(), function(schema, actionName) {
+      if (!schema.disabled) {
+        var reqBase = self.getPodBase(podName),
+          actionProto = require(reqBase + '/' + actionName + '.js');
+
+        action = new actionProto(self.getConfig(), self);
+        action.$resource = self.$resource;
+
+        // bind meta info
+        action.name = actionName;
+        action.schema = schema;
+        action.pod = self;
+
+        // add to action collection
+        self.actions[actionName] = action;
+      }
+    });
 
     if (this._podInit) {
       this._podInit.apply(this);
@@ -1290,8 +1301,15 @@ Pod.prototype = {
      *
      * @param ActionProto {Object} Action Object
      */
+/*
   add : function(ActionProto) {
     this._actionProtos.push(ActionProto);
+  },
+  */
+
+  // DUMMY - DEPRECATED
+  add : function() {
+
   },
 
   /*
@@ -1378,6 +1396,8 @@ Pod.prototype = {
           } else if (self.isIssuerAuth()) {
             sysImports.auth.issuer_token = tokenStruct;
           }
+
+          next(false, sysImports);
         }
       });
     } else {
