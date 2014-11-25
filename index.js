@@ -144,6 +144,9 @@ function Pod(metadata, init) {
   // DAO
   this._dao = null;
 
+  // logger
+  this._logger = null;
+
   // action prototypes
   this._actionProtos = [];
 
@@ -157,6 +160,9 @@ function Pod(metadata, init) {
   this.options = {
     baseURL : '',
     blacklist : [],
+    timezone : 'UTC',
+    cdnPublicBaseURL : '',
+    emitterBaseURL : '',
     config : {}
   };
 
@@ -174,7 +180,8 @@ Pod.prototype = {
      *
      */
   init : function(podName, dao, cdn, logger, options) {
-    var reqBase = __dirname + '/../bip-pod-' + podName ;
+    var reqBase = __dirname + '/../bip-pod-' + podName,
+      self = this;
 
     this._bpm = require(reqBase + '/bpm.json');
 
@@ -194,6 +201,13 @@ Pod.prototype = {
     if (options.config) {
       this.setConfig(options.config);
     }
+
+    // merge options
+    _.each(options, function(value, key) {
+      if ('config' !== key) {
+        self.options[key] = value;
+      }
+    });
 
     if (dao) {
       this._dao = dao;
@@ -403,7 +417,7 @@ Pod.prototype = {
   },
 
   getIcon : function() {
-    return CFG.cdn_public + '/pods/' + this.getName() + '.png';
+    return this.options.cdnPublicBaseURL + this.getName() + '.png';
   },
 
   getRPCs : function() {
@@ -555,7 +569,7 @@ Pod.prototype = {
             callback,
             null,
             true,
-            GLOBAL.CFG.timezone
+            self.options.timezone
           );
       }
     }
@@ -633,11 +647,9 @@ Pod.prototype = {
 
         self.testCredentials(struct, function(err, status) {
           if (err) {
-
             res.status(status || 401).jsonp({ "message" : err.toString() });
 
           } else {
-            var model = self._dao.modelFactory('account_auth', struct);
 
             // @todo upserts don't work with mongoose middleware
             // create a dao helper for filter -> model upsert.
@@ -658,12 +670,12 @@ Pod.prototype = {
                   }, req.remoteUser);
                 } else {
                   // create
+                  var model = self._dao.modelFactory('account_auth', struct);
                   self._dao.create(model, function(err, result) {
                     if (err) {
                       self._logger.call(self, err, 'error');
                       res.status(500).jsonp({});
                     } else {
-//                      self.autoInstall(req.remoteUser);
                       res.status(200).jsonp({});
                     }
                   }, req.remoteUser);
@@ -680,8 +692,6 @@ Pod.prototype = {
           type : 'issuer_token',
           auth_provider : this.getName()
         }
-
-
 
         this._dao.removeFilter('account_auth', filter, function(err) {
           if (!err) {
@@ -709,7 +719,7 @@ Pod.prototype = {
     podName = this.getName(),
     accountInfo = req.remoteUser,
     accountId = accountInfo.getId(),
-    emitterHost = CFG.site_emitter || CFG.website_public;
+    emitterHost = this.options.emitterBaseURL;
 
     if (false !== this._oAuthRegistered) {
       // invoke the passport oauth handler
@@ -725,21 +735,21 @@ Pod.prototype = {
           // @todo - decouple from site.
           if (err) {
             self._logger.call(self, err, 'error');
-            res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
+            res.redirect(emitterHost + '/oauthcb?status=denied&provider=' + podName);
 
           } else if (!user && req.query.error_reason && req.query.error_reason == 'user_denied') {
             self._logger.call(self, '[' + accountId + '] OAUTH ' + podName + ' CANCELLED' );
-            res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
+            res.redirect(emitterHost + '/oauthcb?status=denied&provider=' + podName);
 
           } else if (!user) {
             self._logger.call(self, '[' + accountId + '] OAUTH ' + podName + ' UNKNOWN ERROR' );
-            res.redirect(emitterHost + '/emitter/oauthcb?status=denied&provider=' + podName);
+            res.redirect(emitterHost + '/oauthcb?status=denied&provider=' + podName);
 
           } else {
             self._logger.call(self, '[' + accountId + '] OAUTH ' + podName + ' AUTHORIZED' );
             // install singletons
 //            self.autoInstall(accountInfo);
-            res.redirect(emitterHost + '/emitter/oauthcb?status=accepted&provider=' + podName);
+            res.redirect(emitterHost + '/oauthcb?status=accepted&provider=' + podName);
           }
         })(req, res, function(err) {
           res.send(500);
@@ -802,7 +812,7 @@ Pod.prototype = {
           next(false, podName, self.getAuthType(), result );
         }
       } else {
-        next(false, podName,  self.getAuthType(), self._dao.modelFactory('account_auth', result));
+        next(false, podName,  self.getAuthType(), result);
       }
     });
 
@@ -830,13 +840,14 @@ Pod.prototype = {
      *
      */
   _oAuthRegisterStrategy : function(strategy, config) {
-    var localConfig = {
-      callbackURL : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this.getName() + '/cb',
-      failureRedirect : CFG.proto_public + CFG.domain_public + '/rpc/oauth/' + this.getName() + '/denied',
-      passReqToCallback: true
-    },
-    passportStrategy,
-    self = this;
+
+    var self = this,
+      localConfig = {
+        callbackURL : self.options.baseUrl  + '/rpc/oauth/' + this.getName() + '/cb',
+        failureRedirect : self.options.baseUrl  + '/rpc/oauth/' + this.getName() + '/denied',
+        passReqToCallback: true
+      },
+      passportStrategy;
 
     for (key in config) {
       localConfig[key] = config[key];
@@ -920,8 +931,6 @@ Pod.prototype = {
       struct.oauth_token_expire = params.expires_in;
     }
 
-    var model = this._dao.modelFactory(modelName, struct);
-
     // @todo upserts don't work with mongoose middleware
     // create a dao helper for filter -> model upsert.
     this._dao.find(modelName, filter, function(err, result) {
@@ -930,7 +939,6 @@ Pod.prototype = {
         done( err, req.remoteUser );
       } else {
         if (result) {
-
           self._dao.updateProperties(
             modelName,
             result.id,
@@ -940,43 +948,13 @@ Pod.prototype = {
             }
           );
         } else {
+          var model = self._dao.modelFactory(modelName, struct);
           self._dao.create(model, function(err, result) {
             next( err, accountInfo );
           });
         }
       }
     });
-  },
-
-  /**
-     * Given an owner id, retrieves the oauth token for this pod
-     */
-  oAuthGetToken : function(owner_id, next) {
-    var self = this;
-    this._dao.find(
-      'account_auth',
-      {
-        'owner_id' : owner_id,
-        'oauth_provider' : this.getName()
-      },
-      function(err, result) {
-        var authRecord;
-        if (!err && result) {
-          authRecord = self._dao.modelFactory('account_auth', result);
-          next(
-            false,
-            authRecord.getPassword(),
-            authRecord.getOAuthRefresh(),
-            authRecord.getOauthProfile()
-            );
-        } else {
-          if (err) {
-            self._logger.call(self, err, 'error');
-          }
-          next(err, result);
-        }
-      }
-      );
   },
 
   oAuthRefresh : function(authModel) {
@@ -1002,32 +980,6 @@ Pod.prototype = {
           );
       }
     });
-  },
-
-  authGetIssuerToken : function(owner_id, next) {
-    var self = this;
-
-    this._dao.find(
-      'account_auth',
-      {
-        'owner_id' : owner_id,
-        'auth_provider' : this.getName()
-      },
-      function(err, result) {
-        var authRecord;
-        if (!err && result) {
-          authRecord = self._dao.modelFactory('account_auth', result);
-          next(false, authRecord.getUsername(), authRecord.getPassword(), authRecord.getKey());
-        } else {
-          if (err) {
-            self._logger.call(self, err, 'error');
-          } else if (!result) {
-            self._logger.call(self, 'no result for owner_id:' + owner_id + ' provider:' + this.getName(), 'error');
-          }
-          next(err, result);
-        }
-      }
-      );
   },
 
 
@@ -1414,39 +1366,18 @@ Pod.prototype = {
       sysImports.auth = {};
     }
 
-    if (this.isOAuth() && !sysImports.auth.oauth) {
-      this.oAuthGetToken(ownerId, function(err, oAuthToken, tokenSecret, authProfile) {
-        if (!err && oAuthToken) {
-          sysImports.auth = {
-            oauth : {
-              token : oAuthToken,
-              secret : tokenSecret,
-              profile : authProfile
-            }
-          };
-          next(false, sysImports);
-        } else {
+    if ( (self.isOAuth() && !sysImports.auth.oauth) || (self.isIssuerAuth() && !sysImports.auth.issuer_token) )  {
+      self._dao.getPodAuthTokens(ownerId, this, function(err, tokenStruct) {
+        if (err) {
           next(err);
-        }
-      });
-
-    } else if (this.isIssuerAuth() && !sysImports.auth.issuer_token) {
-      this.authGetIssuerToken(ownerId, function(err, username, password, key) {
-        if (!(username || password || key)) {
-          err = 'No Authorization Tokens Set';
-        }
-
-        if (!err) {
-          sysImports.auth = {
-            issuer_token : {
-              username : username,
-              password : password,
-              key : key
-            }
-          };
-          next(false, sysImports);
         } else {
-          next(err);
+          sysImports.auth = {};
+
+          if (self.isOAuth()) {
+            sysImports.auth.oauth = tokenStruct;
+          } else if (self.isIssuerAuth()) {
+            sysImports.auth.issuer_token = tokenStruct;
+          }
         }
       });
     } else {
@@ -1568,76 +1499,6 @@ Pod.prototype = {
   },
 
   /**
-     * Auto installs singletons for the supplied user
-     */
-
-  /**
-   *
-   * @todo DEPRECATE/REFACTOR - how/should channels be auto installed?
-   */
-   /*
-  autoInstall : function(accountInfo, next) {
-    if (next) {
-      next(false);
-    } else {
-      return;
-    }
-
-    // DEPRECATED
-    var dao = this._dao,
-    channelTemplate,
-    s,
-    i = 0,
-    keyLen = 0,
-    errors = false,
-    installedKeys = [],
-    singles = false;
-
-    // check any singles exist
-    for (key in this._schemas) {
-      if (this._schemas[key].singleton || this._schemas[key].auto) {
-        singles = true;
-        keyLen++;
-      }
-    }
-
-    if (keyLen && singles) {
-      for (key in this._schemas) {
-        s = this._schemas[key];
-        if (s.singleton || s.auto) {
-          channelTemplate = {
-            name : s.title,
-            action : this.getName() + '.' + key,
-            config : {}, // singletons don't have config
-            note : s.description
-          };
-
-          // don't care about catching duplicates right now
-          model = dao.modelFactory('channel', channelTemplate, accountInfo );
-          dao.create(model, function(err, modelName, result) {
-            i++;
-            if (err) {
-              self._logger.call(self, err, 'error');
-              errors = true;
-            } else {
-              installedKeys.push(result.action);
-            }
-
-            if (i === keyLen && next) {
-              // errors are already be logged
-              next(errors, (errors ? 'There were errors' : installedKeys.toString()), result.owner_id );
-            }
-
-          }, accountInfo );
-        }
-      }
-    } else if (next) {
-      next(false, 'No Singletons to Install');
-    }
-  },
-  */
-
-  /**
    * Creates a json-schema-ish 'public' view of this Pod
    */
   describe : function() {
@@ -1698,7 +1559,7 @@ Pod.prototype = {
       channel_id : channel.id
     };
 
-    var model = this._dao.modelFactory('channel_pod_tracking', trackingStruct, accountInfo);
+    var model = self._dao.modelFactory('channel_pod_tracking', trackingStruct);
     this._dao.create(model, next, accountInfo);
   },
 
