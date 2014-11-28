@@ -1459,6 +1459,7 @@ Pod.prototype = {
           missingFields = [],
           errStr;
 
+        // apply config defaults
         var configDefaults = this.getActionConfigDefaults(action);
         _.each(configDefaults, function(value, key) {
           if (!channel.config[key]) {
@@ -1466,13 +1467,14 @@ Pod.prototype = {
           }
         });
 
-        // where imports:config is 1:1, transpose from config to imports
+        // transpose from config to imports (no need to reference channel.config in pods)
         _.each(channel.config, function(value, key) {
-          if (actionSchema.imports.properties[key] && !imports[key]) {
+          if (!imports[key]) {
             imports[key] = channel.config[key];
           }
         });
 
+        // derive import defaults
         var importDefaults = this.getActionImportDefaults(action);
         _.each(importDefaults, function(value, key) {
           if (!imports[key]) {
