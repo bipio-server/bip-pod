@@ -518,7 +518,20 @@ Pod.prototype = {
     var defaults = {},
       config = this.getActionConfig(action);
 
-    _.each(config, function(attr, key) {
+    _.each(config.properties, function(attr, key) {
+      if (attr['default']) {
+        defaults[key] = attr['default'];
+      }
+    });
+
+    return defaults;
+  },
+
+  getActionImportDefaults : function(action) {
+    var defaults = {},
+      imports = this.getActionImports(action);
+
+    _.each(imports.properties, function(attr, key) {
       if (attr['default']) {
         defaults[key] = attr['default'];
       }
@@ -1446,15 +1459,26 @@ Pod.prototype = {
           missingFields = [],
           errStr;
 
-        for (var k in channel.config) {
-          if (channel.config.hasOwnProperty(k)
-            && !imports[k]
-            && actionSchema.imports.required
-            && -1 !== actionSchema.imports.required.indexOf(k)) {
-
-            imports[k] = channel.config[k];
+        var configDefaults = this.getActionConfigDefaults(action);
+        _.each(configDefaults, function(value, key) {
+          if (!channel.config[key]) {
+            channel.config[key] = value;
           }
-        }
+        });
+
+        // where imports:config is 1:1, transpose from config to imports
+        _.each(channel.config, function(value, key) {
+          if (actionSchema.imports.properties[key] && !imports[key]) {
+            imports[key] = channel.config[key];
+          }
+        });
+
+        var importDefaults = this.getActionImportDefaults(action);
+        _.each(importDefaults, function(value, key) {
+          if (!imports[key]) {
+            imports[key] = value;
+          }
+        });
 
         // trim empty imports
         for (var k in imports) {
@@ -1483,7 +1507,6 @@ Pod.prototype = {
             }
             next.apply(self, arguments);
           });
-
 
         } else {
           errStr = 'Missing Required Field(s):' + missingFields.join();
