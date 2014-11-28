@@ -186,7 +186,7 @@ Pod.prototype = {
     var reqBase = this.getPodBase(podName),
       self = this;
 
-    this._bpm = require(reqBase + '/bpm.json');
+    this._bpm = require(reqBase + '/manifest.json');
 
     // check required meta's
     for (var i = 0; i < requiredMeta.length; i++) {
@@ -232,7 +232,7 @@ Pod.prototype = {
 
       this._dao.registerModel(podDupTracker);
 
-      this.$resource.dupFilter = this.dupFilter;
+//      this.$resource.dupFilter = this.dupFilter;
     }
 
     // register pod data sources
@@ -302,7 +302,14 @@ Pod.prototype = {
     this.$resource.uuid = uuid;
     this.$resource.sanitize = validator.sanitize;
 
-    this.$resource.log = this.log;
+    this.$resource.accumulateFilter = this.accumulateFilter;
+
+    this.$resource.log = (function(scope) {
+      return function() {
+        scope.log.apply(scope, arguments);
+      }
+    })(this);
+
     this.$resource.getDataSourceName = function(dsName) {
       return 'pod_' + self.getName().replace(/-/g, '_') + '_' + dsName;
     };
@@ -518,6 +525,10 @@ Pod.prototype = {
     });
 
     return defaults;
+  },
+
+  getActionRPC : function(action, rpc) {
+    return this.getBPMAttr('actions.' + action + '.rpcs.' + rpc);
   },
 
   // description of the action
@@ -1418,71 +1429,74 @@ Pod.prototype = {
   invoke: function(action, channel, imports, sysImports, contentParts, next) {
     var self = this;
 
-    if (!contentParts) {
-      contentParts = {
-        _files : []
+    if (this.actions[action].invoke) {
+
+      if (!contentParts) {
+        contentParts = {
+          _files : []
+        }
       }
-    }
 
-   try {
+     try {
 
-      // apply channel config defaults into imports, if required
-      // fields don't already exist
-      var actionSchema = this.getAction(action),
-        haveRequiredFields = true,
-        missingFields = [],
-        errStr;
+        // apply channel config defaults into imports, if required
+        // fields don't already exist
+        var actionSchema = this.getAction(action),
+          haveRequiredFields = true,
+          missingFields = [],
+          errStr;
 
-      for (var k in channel.config) {
-        if (channel.config.hasOwnProperty(k)
-          && !imports[k]
+        for (var k in channel.config) {
+          if (channel.config.hasOwnProperty(k)
+            && !imports[k]
+            && actionSchema.imports.required
+            && -1 !== actionSchema.imports.required.indexOf(k)) {
+
+            imports[k] = channel.config[k];
+          }
+        }
+
+        // trim empty imports
+        for (var k in imports) {
+          if (imports.hasOwnProperty(k) && '' === imports[k]) {
+            delete imports[k];
+          }
+        }
+
+        if (actionSchema.imports
           && actionSchema.imports.required
-          && -1 !== actionSchema.imports.required.indexOf(k)) {
+          && actionSchema.imports.required.length) {
 
-          imports[k] = channel.config[k];
-        }
-      }
-
-      // trim empty imports
-      for (var k in imports) {
-        if (imports.hasOwnProperty(k) && '' === imports[k]) {
-          delete imports[k];
-        }
-      }
-
-      if (actionSchema.imports
-        && actionSchema.imports.required
-        && actionSchema.imports.required.length) {
-
-        for (var i = 0; i < actionSchema.imports.required.length; i++) {
-          if (!imports[actionSchema.imports.required[i]]) {
-            haveRequiredFields = false;
-            missingFields.push(actionSchema.imports.required[i]);
+          for (var i = 0; i < actionSchema.imports.required.length; i++) {
+            if (!imports[actionSchema.imports.required[i]]) {
+              haveRequiredFields = false;
+              missingFields.push(actionSchema.imports.required[i]);
+            }
           }
         }
+
+        if (haveRequiredFields) {
+          //
+          this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
+            if (err) {
+              self.log(err, channel, 'error');
+            }
+            next.apply(self, arguments);
+          });
+
+
+        } else {
+          errStr = 'Missing Required Field(s):' + missingFields.join();
+        }
+
+      } catch (e) {
+        errStr = 'EXCEPT ' + e.toString();
       }
 
-      if (haveRequiredFields) {
-        //
-        this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
-          if (err) {
-            self.log(err, channel, 'error');
-          }
-          next.apply(self, arguments);
-        });
-
-
-      } else {
-        errStr = 'Missing Required Field(s):' + missingFields.join();
+      if (errStr) {
+       self.log(errStr, channel, 'error');
+       next.call(self, errStr);
       }
-
-    } catch (e) {
-      errStr = 'EXCEPT ' + e.toString();
-    }
-
-    if (errStr) {
-     self.log(errStr, channel, 'error');
-     next.call(self, errStr);
     }
   },
 
@@ -1662,7 +1676,50 @@ Pod.prototype = {
     });
   },
 
+  /**
+   *
+   *
+   *
+   */
+  accumulateFilter : function(modelName, filter, setter, incBy, next) {
+    var self = this,
+      modelName = this.getDataSourceName(modelName),
+      dao = self.dao;
 
+    dao.accumulateFilter(modelName, filter, 'count', setter, function(err) {
+      if (err) {
+        next(err);
+      } else {
+        // check if it was an upsert and give it an id if none present (yuck)
+        dao.find(modelName, filter, function(err, result) {
+          if (err) {
+            next(err);
+          } else {
+            // pretty gross, is there a better way?
+            if (!result.id) {
+              dao.updateColumn(
+                modelName,
+                filter,
+                {
+                  id : app.helper.uuid().v4(),
+                  created : app.helper.nowUTCSeconds()
+                },
+                function(err) {
+                  if (err) {
+                    next(err);
+                  } else {
+                    next(false, result.count);
+                  }
+                }
+              );
+            } else {
+              next(false, result.count);
+            }
+          }
+        });
+      }
+    }, incBy);
+  },
 }
 
 module.exports = Pod;
