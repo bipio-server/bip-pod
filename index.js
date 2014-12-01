@@ -1599,7 +1599,37 @@ Pod.prototype = {
    *
    */
   dispositionDescribe : function(action) {
+    var self = this,
+      imports = this.getActionImports(action),
+      config = this.getActionConfig(action),
+      descriptions = [];
 
+     _.each(
+      _.uniq(
+        _.union(imports.required, config.required).concat(
+          imports.disposition,
+          config.disposition
+        )
+      ),
+      function(attr) {
+        var prop;
+
+        if (imports.properties.hasOwnProperty(attr)) {
+          prop = _.clone(imports.properties[attr]);
+        } else if (config.properties.hasOwnProperty(attr)) {
+          prop = _.clone(config.properties[attr]);
+        }
+
+        if (prop) {
+          prop.name = attr;
+          descriptions.push(prop);
+        } else {
+          self._logger('required field "' + attr + '" not in imports or config', 'warn');
+        }
+      }
+    );
+
+     return descriptions;
   },
 
   /*
@@ -1608,11 +1638,29 @@ Pod.prototype = {
    * @return object keyed by config, imports, auth
    */
   dispositionUnpack : function(action, args) {
-    var unpacked = {
-      config : null,
-      imports : null,
-      auth : null
-    };
+    var self = this,
+      imports = this.getActionImports(action),
+      config = this.getActionConfig(action),
+      unpacked = {
+        config : {},
+        imports : {}
+      },
+      disposition = this.dispositionDescribe(action),
+      ptr;
+
+    _.each(args, function(value, idx) {
+      ptr = disposition[idx];
+
+      if (imports.properties.hasOwnProperty(ptr.name)) {
+        unpacked.imports[ptr.name] = value;
+      }
+
+      if (config.properties.hasOwnProperty(ptr.name)) {
+        unpacked.config[ptr.name] = value;
+      }
+    });
+
+    return unpacked;
   },
 
   // @todo deprecate

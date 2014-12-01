@@ -34,6 +34,11 @@
           "opt_str_in": {
             "type": "string",
             "description": "Optional String In"
+          },
+          "config_option" : {
+            "type" : "boolean",
+            "description" : "Boolean Config Option",
+            "default" : true
           }
         },
         "required" : [
@@ -41,7 +46,8 @@
         ],
         "disposition": [
           "str_in",
-          "opt_str_in"
+          "opt_str_in",
+          "config_option"
         ]
       },
       "exports": {
@@ -68,12 +74,13 @@
           }
         },
         "required": [
+          "value",
           "str_in"
         ],
         "disposition": [
+          "value"        ,
           "str_in",
-          "opt_str_in",
-          "value"
+          "opt_str_in"
         ]
       }
     }
