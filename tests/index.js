@@ -1,7 +1,7 @@
 var assert = require('assert'),
     should = require('should');
 
-describe('attach custom pod', function() {
+describe('attach pod (boilerplate)', function() {
   var
     dao = {
       registerModel : function() {
@@ -9,7 +9,7 @@ describe('attach custom pod', function() {
       }
     },
     cdn = {},
-    logger = function(msg, errorLevel) {
+    logger = function(channel, msg, errorLevel) {
       console[errorLevel || 'log'](msg);
     },
     options = {
@@ -72,6 +72,43 @@ describe('attach custom pod', function() {
       _.each(values, function(pVal, pKey) {
         payload[key + '.' + pKey].should.equal(pVal)
       })
+    });
+  });
+
+  it('honors action required fields', function(done) {
+    var channel = {
+        config : {
+
+        }
+      },
+      imports = {
+      },
+      sysImports = {},
+      contentParts = {};
+
+    pod.invoke('simple', channel, imports, sysImports, contentParts, function(err, exports) {
+      err.should.equal('Missing Required Field(s):value,str_in');
+      done();
+    });
+  });
+
+  it('can invoke action', function(done) {
+    var channel = {
+        config : {
+
+        }
+      },
+      imports = {
+        str_in : 'echo',
+        value : '_req_value'
+      },
+      sysImports = {},
+      contentParts = {};
+
+    pod.invoke('simple', channel, imports, sysImports, contentParts, function(err, exports) {
+      should(err).not.ok
+      exports.str_out.should.equal('echo_req_value');
+      done();
     });
   });
 

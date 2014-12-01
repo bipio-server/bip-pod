@@ -1518,6 +1518,7 @@ Pod.prototype = {
       }
 
       if (errStr) {
+
        self.log(errStr, channel, 'error');
        next.call(self, errStr);
       }
