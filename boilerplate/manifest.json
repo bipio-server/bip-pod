@@ -1,0 +1,81 @@
+{
+  "name": "boilerplate",
+  "title": "Boilerplate",
+  "description": "A Simple Boilerplate Schema for creating Pods of your own",
+  "url": "",
+  "trackDuplicates": false,
+  "config": {},
+  "auth": {
+    "strategy": "none"
+  },
+  "rpcs": {
+    "echo": {
+      "contentType": "application/json",
+      "title": "What You Give is What You Get",
+      "properties" : {
+        "message" : {
+          "type" : "string",
+          "description" : "echo message"
+        }
+      }
+    }
+  },
+  "actions": {
+    "simple": {
+      "title": "Simple Action",
+      "description": "Long Description",
+      "trigger": "invoke",
+      "config": {
+        "properties": {
+          "str_in": {
+            "type": "string",
+            "description": "String In"
+          },
+          "opt_str_in": {
+            "type": "string",
+            "description": "Optional String In"
+          }
+        },
+        "required" : [
+          "str_in"
+        ],
+        "disposition": [
+          "str_in",
+          "opt_str_in"
+        ]
+      },
+      "exports": {
+        "properties": {
+          "str_out": {
+            "type": "string",
+            "description": "Output String"
+          }
+        }
+      },
+      "imports": {
+        "properties": {
+          "str_in": {
+            "type": "string",
+            "description": "String in (override)"
+          },
+          "opt_str_in": {
+            "type": "string",
+            "description": "Optional String in (override)"
+          },
+          "value": {
+            "type": "integer",
+            "description": "Initial Value"
+          }
+        },
+        "required": [
+          "str_in"
+        ],
+        "disposition": [
+          "str_in",
+          "opt_str_in",
+          "value"
+        ]
+      }
+    }
+  }
+}

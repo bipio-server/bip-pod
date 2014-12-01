@@ -170,8 +170,8 @@ function Pod(metadata, init) {
 }
 
 Pod.prototype = {
-  getPodBase : function(podName) {
-    return __dirname + '/../bip-pod-' + podName;
+  getPodBase : function(podName, literal) {
+    return __dirname + (literal ? '/' : '/../bip-pod-') + podName;
   },
   /**
      * make system resources available to the pod. Invoked by the Pod registrar
@@ -183,7 +183,7 @@ Pod.prototype = {
      *
      */
   init : function(podName, dao, cdn, logger, options) {
-    var reqBase = this.getPodBase(podName),
+    var reqBase = this.getPodBase(podName, options.reqLiteral),
       self = this;
 
     this._bpm = require(reqBase + '/manifest.json');
@@ -294,7 +294,6 @@ Pod.prototype = {
     // --- CREATE RESOURCES
     //
 
-
     // create resources for Actions
     this.$resource.dao = dao;
     this.$resource.moment = moment;
@@ -334,7 +333,7 @@ Pod.prototype = {
     this.$resource._isVisibleHost = this._isVisibleHost;
 
     // give the pod a scheduler
-    if (app.isMaster) {
+    if (options.isMaster) {
       this.$resource.cron = cron;
     }
 
@@ -344,7 +343,7 @@ Pod.prototype = {
     var action;
     _.each(this.getActionSchemas(), function(schema, actionName) {
       if (!schema.disabled) {
-        var reqBase = self.getPodBase(podName),
+        var reqBase = self.getPodBase(podName, options.reqLiteral),
           actionProto = require(reqBase + '/' + actionName + '.js');
 
         action = new actionProto(self.getConfig(), self);
@@ -1593,6 +1592,27 @@ Pod.prototype = {
     }
 
     return schema;
+  },
+
+  /**
+   * Returns array of config/imports in merged disposition order
+   *
+   */
+  dispositionDescribe : function(action) {
+
+  },
+
+  /*
+   * Unpacks given arguments by their schema disposition
+   *
+   * @return object keyed by config, imports, auth
+   */
+  dispositionUnpack : function(action, args) {
+    var unpacked = {
+      config : null,
+      imports : null,
+      auth : null
+    };
   },
 
   // @todo deprecate

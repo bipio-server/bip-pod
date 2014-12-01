@@ -24,28 +24,15 @@ function Simple(podConfig) {
 
 Simple.prototype = {};
 
-
 // RPC/Renderer accessor - /rpc/render/channel/{channel id}/hello
 Simple.prototype.rpc = function(method, sysImports, options, channel, req, res) {
   var self = this;
-  if (method === 'hello') {
+  if (method === 'echo') {
     res.contentType(self.pod.getActionRPC(self.name, method).contentType);
-    res.send('world');
+    res.send(req.query.message);
   } else {
     res.send(404);
   }
-}
-
-// channel presave setup
-// setup data sources
-Simple.prototype.setup = function(channel, accountInfo, next) {
-  next(false, 'channel', channel);
-}
-
-// channel destroy/teardown
-// you can remove any stored data here
-Simple.prototype.teardown = function(channel, accountInfo, next) {
-  next(false, 'channel', channel);
 }
 
 /**
@@ -65,8 +52,12 @@ Simple.prototype.invoke = function(imports, channel, sysImports, contentParts, n
   next(
     false,
     {
-      "outstring" : channel.config.instring_override || imports.instring
-    }
+      "str_out" :  imports.str_in
+        + ''
+        + (imports.opt_str_in ? imports.opt_str_in : '')
+        + ''
+        + (imports.value ? imports.value : '')
+      }
     );
 }
 
