@@ -22,15 +22,18 @@ describe('attach pod (boilerplate)', function() {
       reqLiteral : true
     },
     podName = 'boilerplate',
+    pod;
+
+  beforeEach(function() {
     pod = require('../' + podName + '/index.js');
+    pod.init(podName, dao, cdn, logger, options);
+  });
 
-  pod.init(podName, dao, cdn, logger, options);
-
-  it('can describe pod', function() {
+  xit('can describe pod', function() {
     pod.getName().should.equal(podName);
   });
 
-  it('can provide a (pre-disposed) description', function() {
+  xit('can provide a (pre-disposed) description', function() {
     var descriptions = pod.dispositionDescribe('simple'),
       expectedDisposition = [
         "value",
@@ -44,7 +47,7 @@ describe('attach pod (boilerplate)', function() {
     }
   });
 
-  it('can derive config and imports from a (pre-disposed) payload', function() {
+  xit('can derive config and imports from a (pre-disposed) payload', function() {
     var payload = {
         'imports.value' :'pl_value',
         'config.str_in' : 'pl_str_in',
@@ -75,7 +78,7 @@ describe('attach pod (boilerplate)', function() {
     });
   });
 
-  it('honors action required fields', function(done) {
+  xit('honors action required fields', function(done) {
     var channel = {
         config : {
 
@@ -92,7 +95,7 @@ describe('attach pod (boilerplate)', function() {
     });
   });
 
-  it('can invoke action', function(done) {
+  xit('can invoke action', function(done) {
     var channel = {
         config : {
 
@@ -112,4 +115,78 @@ describe('attach pod (boilerplate)', function() {
     });
   });
 
+
+  it('can provide a (pre-disposed) description including auth', function() {
+    var oldSchema = pod.getSchema(),
+      newSchema = JSON.parse(JSON.stringify(oldSchema));
+
+    newSchema.auth.properties = {
+      "access_token" : {
+        "type" : "string"
+      },
+      "secret" : {
+        "type" : "string"
+      }
+    };
+
+    newSchema.auth.disposition = [ "access_token", "secret" ];
+
+    pod.setSchema(newSchema);
+
+    var descriptions = pod.dispositionDescribe('simple'),
+      expectedDisposition = [
+        "value",
+        "str_in",
+        "opt_str_in",
+        "config_option"
+      ];
+
+      console.log(_.pluck(descriptions, 'name'));
+
+
+
+
+  });
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

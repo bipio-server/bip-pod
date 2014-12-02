@@ -186,7 +186,7 @@ Pod.prototype = {
     var reqBase = this.getPodBase(podName, options.reqLiteral),
       self = this;
 
-    this._bpm = require(reqBase + '/manifest.json');
+    this.setSchema(require(reqBase + '/manifest.json'));
 
     // check required meta's
     for (var i = 0; i < requiredMeta.length; i++) {
@@ -329,7 +329,11 @@ Pod.prototype = {
 
     // temporary file management bridge
     this.$resource.file = cdn;
-
+/*
+    this.$resource.file = {
+      get : this._cdnFileGet
+    }
+*/
     this.$resource._isVisibleHost = this._isVisibleHost;
 
     // give the pod a scheduler
@@ -416,8 +420,12 @@ Pod.prototype = {
     return this._attrCache[path];
   },
 
-  getSchema : function(action) {
+  getSchema : function() {
     return this._bpm;
+  },
+
+  setSchema : function(bpmJSON) {
+    this._bpm = bpmJSON;
   },
 
   // --------------------------- BPM path accessors
@@ -447,8 +455,12 @@ Pod.prototype = {
     return this.getBPMAttr('auth.strategy') || 'none';
   },
 
-  getAuthMap : function() {
-    return this.getBPMAttr('auth.authMap') || {};
+  getAuthProperties : function() {
+    return this.getBPMAttr('auth.properties') || {};
+  },
+
+  getAuthDisposition : function() {
+    return this.getBPMAttr('auth.disposition') || [];
   },
 
   getAuth : function() {
@@ -1401,7 +1413,9 @@ Pod.prototype = {
     *
     */
   bindUserAuth : function(sysImports, ownerId, next) {
-    var self = this;
+    var self = this,
+      config = this.getConfig(),
+      cfgClone;
 
     if (!sysImports.auth) {
       sysImports.auth = {};
@@ -1415,9 +1429,17 @@ Pod.prototype = {
           sysImports.auth = {};
 
           if (self.isOAuth()) {
-            sysImports.auth.oauth = tokenStruct;
+            // apply token struct into config (which becomes derived sysImports.auth.oauth)
+            cfgClone = JSON.parse(JSON.stringify(config.oauth));
+            _.each(tokenStruct, function(value, key) {
+              cfgClone[key] = value;
+            });
+
+            sysImports.auth.oauth = cfgClone;
+
           } else if (self.isIssuerAuth()) {
             sysImports.auth.issuer_token = tokenStruct;
+
           }
 
           next(false, sysImports);
@@ -1579,18 +1601,11 @@ Pod.prototype = {
     if (authType == 'oauth') {
       schema.auth.scopes = this.getConfig().oauth.scopes || [];
       schema.auth._href = self.options.baseUrl + '/rpc/oauth/' + this.getName() + '/auth';
-      schema.auth.authKeys = [];
-
-      for (var k in this.getConfig().oauth) {
-        if (this.getConfig().oauth.hasOwnProperty(k) && /^client/.test(k)) {
-          schema.auth.authKeys.push(k);
-        }
-      }
-
     } else if (authType == 'issuer_token') {
       schema.auth._href = self.options.baseUrl + '/rpc/issuer_token/' +  this.getName() + '/set';
-      schema.auth.authMap = this.getAuthMap();
     }
+
+    schema.auth.properties = this.getAuthProperties();
 
     return schema;
   },
