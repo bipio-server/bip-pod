@@ -1618,11 +1618,14 @@ Pod.prototype = {
     var self = this,
       imports = this.getActionImports(action),
       config = this.getActionConfig(action),
+      authDisposition = this.getAuthDisposition(),
+      auth = this.getAuthProperties(),
       descriptions = [];
 
      _.each(
       _.uniq(
-        _.union(imports.required, config.required).concat(
+        _.union(authDisposition, imports.required, config.required).concat(
+          authDisposition,
           imports.disposition,
           config.disposition
         )
@@ -1632,8 +1635,12 @@ Pod.prototype = {
 
         if (imports.properties.hasOwnProperty(attr)) {
           prop = _.clone(imports.properties[attr]);
+
         } else if (config.properties.hasOwnProperty(attr)) {
           prop = _.clone(config.properties[attr]);
+
+        } else if (auth.hasOwnProperty(attr)) {
+          prop = _.clone(auth[attr]);
         }
 
         if (prop) {
@@ -1657,9 +1664,11 @@ Pod.prototype = {
     var self = this,
       imports = this.getActionImports(action),
       config = this.getActionConfig(action),
+      auth = this.getAuthProperties(),
       unpacked = {
         config : {},
-        imports : {}
+        imports : {},
+        auth : {}
       },
       disposition = this.dispositionDescribe(action),
       ptr;
@@ -1674,6 +1683,11 @@ Pod.prototype = {
       if (config.properties.hasOwnProperty(ptr.name)) {
         unpacked.config[ptr.name] = value;
       }
+
+      if (auth.hasOwnProperty(ptr.name)) {
+        unpacked.auth[ptr.name] = value;
+      }
+
     });
 
     return unpacked;
