@@ -1149,28 +1149,28 @@ Pod.prototype = {
 
   // -------------------------------------------------- CDN HELPERS
 
-  _cdnFileSave : function(readableStream, filename, options, next) {
+  /*_cdnFileSave : function(readableStream, filename, options, next) {
     if ('function' === typeof persist) {
       next = options;
       options = {};
     }
   },
 
-  /**
-   * Returns a readable file stream
-   */
+  // Returns a readable file stream
+
   _cdnFileGet : function(fileStruct, next) {
     next(false, fileStruct, fs.createReadStream(path.join(fileStruct.localpath)));
-  },
+  },*/
 
   /**
      * Downloads file from url.  If the file exists, then stats the existing
      * file
      */
-  _httpStreamToFile : function(url, outFile, cb, exports, fileStruct) {
+  /*_httpStreamToFile : function(url, outFile, cb, exports, fileStruct) {
     var self = this,
     outLock = outFile + '.lock';
 
+    //check file's existence
     fs.exists(outLock, function(exists) {
       if (exists) {
         self._logger.call(self,  self.getName() + ' LOCKED, skipping [' + outFile + ']');
@@ -1217,6 +1217,12 @@ Pod.prototype = {
         });
       }
     });
+  },*/
+
+  _httpStreamToFile : function(url, outFile, cb, exports, fileStruct) {
+    var self = this,
+
+    self.cdn.save(outFile, request.get(url), cb);
   },
 
   _createChannelDir : function(pfx, channel, action, next) {
@@ -1227,16 +1233,6 @@ Pod.prototype = {
       dDir += channel.owner_id + '/';
     }
     dDir += this.getName() + '/' + action + '/' + channel.id + '/';
-
-    app.helper.mkdir_p(dDir, 0777 , function(err, path) {
-      if (err) {
-        self.log(err.message, channel, 'error');
-      }
-      if (next) {
-        next(err, path);
-      }
-    });
-
 
     return dDir;
   },
