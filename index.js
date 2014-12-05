@@ -257,7 +257,7 @@ Pod.prototype = {
     }
 
     // register the oauth strategy
-    if (this.getAuthType() === 'oauth') {
+    if ((this.getAuthType() === 'oauth') && (options.oauth)) {
       var auth = self.getAuth(),
         pProvider = (auth.passport && auth.passport.provider)
           ? auth.passport.provider
@@ -1466,7 +1466,7 @@ Pod.prototype = {
           _files : []
         }
       }
-
+    
      try {
 
         // apply channel config defaults into imports, if required
@@ -1531,9 +1531,9 @@ Pod.prototype = {
           errStr = 'Missing Required Field(s):' + missingFields.join();
         }
 
-      } catch (e) {
-        errStr = 'EXCEPT ' + e.toString();
-      }
+     } catch (e) {
+       errStr = 'EXCEPT ' + e.toString();
+     }
 
       if (errStr) {
 
