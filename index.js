@@ -1220,7 +1220,7 @@ Pod.prototype = {
   },*/
 
   _httpStreamToFile : function(url, outFile, cb, exports, fileStruct) {
-    var self = this,
+    var self = this;
 
     self.cdn.save(outFile, request.get(url), cb);
   },
