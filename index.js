@@ -35,6 +35,7 @@ var passport = require('passport'),
   tldtools = require('tldtools'),
   ipaddr = require('ipaddr.js'),
   dns = require('dns'),
+  uuid = require('node-uuid'),
   validator = require('validator');
 
 // utility resources
@@ -658,6 +659,31 @@ Pod.prototype = {
     });
   },
 
+  // ------------------------------ HELPERS
+
+  now : function() {
+    return new Date();
+  },
+
+  toUTC: function(date) {
+    return new Date(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      date.getUTCHours(),
+      date.getUTCMinutes(),
+      date.getUTCSeconds()
+    );
+  },
+
+  nowUTCSeconds: function() {
+    var d = this.toUTC(this.now());
+
+    // @todo looks like a bug in datejs, no seconds for getTime?
+    seconds = d.getSeconds() + (d.getMinutes() * 60) + (d.getHours() * 60 * 60);
+    return (d.getTime() + seconds);
+  },
+
   // ------------------------------ 3RD PARTY AUTHENTICATION HELPERS
 
   testCredentials : function(struct, next) {
@@ -1237,6 +1263,7 @@ Pod.prototype = {
     return dDir;
   },
 
+  // @deprecated
   _rmChannelDir : function(pfx, channel, action, next) {
     var self = this,
       files, file, dDir = pfx + '/channels/';
@@ -1466,7 +1493,7 @@ Pod.prototype = {
           _files : []
         }
       }
-    
+
      try {
 
         // apply channel config defaults into imports, if required
@@ -1820,8 +1847,8 @@ Pod.prototype = {
                 modelName,
                 filter,
                 {
-                  id : app.helper.uuid().v4(),
-                  created : app.helper.nowUTCSeconds()
+                  id : uuid().v4(),
+                  created : self.nowUTCSeconds()
                 },
                 function(err) {
                   if (err) {
