@@ -36,6 +36,7 @@ var passport = require('passport'),
   ipaddr = require('ipaddr.js'),
   dns = require('dns'),
   uuid = require('node-uuid'),
+  crypto = require('crypto'),
   validator = require('validator');
 
 // utility resources
@@ -138,6 +139,60 @@ var helper = {
 
   isFalsy : function(input) {
     return (false === input || /0|no|n|false/g.test(input));
+  },
+
+  scrub: function(str, noEscape) {
+    var retStr = helper.sanitize(str).xss();
+    retStr = helper.sanitize(retStr).trim();
+    return retStr;
+  },
+
+  /**
+   * Cleans an object thoroughly.  Script scrubbed, html encoded.
+   */
+  pasteurize: function(src, noEscape) {
+    var attrLen, newKey;
+    if (helper.isArray(src)) {
+      var attrLen = src.length;
+      for (var i = 0; i < attrLen; i++) {
+        src[i] = helper.pasteurize(src[i], noEscape);
+      }
+    } else if (this.isString(src)) {
+      src = helper.scrub(src, noEscape);
+    } else if (helper.isObject(src)) {
+      var newSrc = {};
+      for (key in src) {
+        newKey = helper.scrub(key);
+        newSrc[newKey] = helper.pasteurize(src[key], noEscape);
+      }
+      src = newSrc;
+    }
+
+    return src;
+  },
+
+  naturalize : function(src) {
+    var attrLen, newKey;
+    if (helper.isArray(src)) {
+      var attrLen = src.length;
+      for (var i = 0; i < attrLen; i++) {
+        src[i] = helper.naturalize(src[i]);
+      }
+    } else if (helper.isString(src)) {
+      src = validator.sanitize(src).entityDecode();
+    } else if (helper.isObject(src)) {
+      var newSrc = {};
+      for (key in src) {
+        newKey = validator.sanitize(key).entityDecode();
+        newSrc[newKey] = helper.naturalize(src[key]);
+      }
+      src = newSrc;
+    }
+    return src;
+  },
+
+  strHash : function(str) {
+    return crypto.createHash('md5').update(str.toLowerCase()).digest("hex");
   },
 
   // Stream helpers
