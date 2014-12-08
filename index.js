@@ -684,6 +684,34 @@ Pod.prototype = {
     return (d.getTime() + seconds);
   },
 
+  isObject: function(src) {
+    return (this.getType(src) == '[object Object]');
+  },
+
+  isArray: function(src) {
+    return (this.getType(src) == '[object Array]');
+  },
+
+  isString : function(src) {
+    return (this.getType(src) == '[object String]');
+  },
+
+  isFunction : function(src) {
+    return (this.getType(src) == '[object Function]');
+  },
+
+  getType: function(src) {
+    return Object.prototype.toString.call( src );
+  },
+
+  isTruthy : function(input) {
+    return (true === input || /1|yes|y|true/g.test(input));
+  },
+
+  isFalsy : function(input) {
+    return (false === input || /0|no|n|false/g.test(input));
+  },
+
   // ------------------------------ 3RD PARTY AUTHENTICATION HELPERS
 
   testCredentials : function(struct, next) {
