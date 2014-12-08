@@ -82,6 +82,66 @@ var helper = {
     return JSONPath.eval(obj, path);
   },
 
+  getObject : function(input) {
+    if (!helper.isObject(input)) {
+      input = JSON.parse(input);
+    }
+    return input;
+  },
+
+  now : function() {
+    return new Date();
+  },
+
+  toUTC: function(date) {
+    return new Date(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      date.getUTCHours(),
+      date.getUTCMinutes(),
+      date.getUTCSeconds()
+    );
+  },
+
+  nowUTCSeconds: function() {
+    var d = helper.toUTC(this.now());
+
+    // @todo looks like a bug in datejs, no seconds for getTime?
+    seconds = d.getSeconds() + (d.getMinutes() * 60) + (d.getHours() * 60 * 60);
+    return (d.getTime() + seconds);
+  },
+
+  isObject: function(src) {
+    return (helper.getType(src) == '[object Object]');
+  },
+
+  isArray: function(src) {
+    return (helper.getType(src) == '[object Array]');
+  },
+
+  isString : function(src) {
+    return (helper.getType(src) == '[object String]');
+  },
+
+  isFunction : function(src) {
+    return (helper.getType(src) == '[object Function]');
+  },
+
+  getType: function(src) {
+    return Object.prototype.toString.call( src );
+  },
+
+  isTruthy : function(input) {
+    return (true === input || /1|yes|y|true/g.test(input));
+  },
+
+  isFalsy : function(input) {
+    return (false === input || /0|no|n|false/g.test(input));
+  },
+
+  // Stream helpers
+
   streamToHash : function(readStream, next) {
     var hash = crypto.createHash('sha1');
     hash.setEncoding('hex');
@@ -300,6 +360,7 @@ Pod.prototype = {
     this.$resource.moment = moment;
     this.$resource.mime = mime;
     this.$resource.uuid = uuid;
+    this.$resource.tldtools = tldtools;
     this.$resource.sanitize = validator.sanitize;
 
     this.$resource.accumulateFilter = this.accumulateFilter;
@@ -322,6 +383,8 @@ Pod.prototype = {
     this.$resource._httpPost = this._httpPost;
     this.$resource._httpPut = this._httpPut;
     this.$resource._httpStreamToFile = this._httpStreamToFile;
+
+    this.$resource.helper = helper;
 
     this.$resource.stream = {
       toHash : helper.streamToHash,
@@ -657,59 +720,6 @@ Pod.prototype = {
         next(err, blacklisted, resolved);
       }
     });
-  },
-
-  // ------------------------------ HELPERS
-
-  now : function() {
-    return new Date();
-  },
-
-  toUTC: function(date) {
-    return new Date(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      date.getUTCHours(),
-      date.getUTCMinutes(),
-      date.getUTCSeconds()
-    );
-  },
-
-  nowUTCSeconds: function() {
-    var d = this.toUTC(this.now());
-
-    // @todo looks like a bug in datejs, no seconds for getTime?
-    seconds = d.getSeconds() + (d.getMinutes() * 60) + (d.getHours() * 60 * 60);
-    return (d.getTime() + seconds);
-  },
-
-  isObject: function(src) {
-    return (this.getType(src) == '[object Object]');
-  },
-
-  isArray: function(src) {
-    return (this.getType(src) == '[object Array]');
-  },
-
-  isString : function(src) {
-    return (this.getType(src) == '[object String]');
-  },
-
-  isFunction : function(src) {
-    return (this.getType(src) == '[object Function]');
-  },
-
-  getType: function(src) {
-    return Object.prototype.toString.call( src );
-  },
-
-  isTruthy : function(input) {
-    return (true === input || /1|yes|y|true/g.test(input));
-  },
-
-  isFalsy : function(input) {
-    return (false === input || /0|no|n|false/g.test(input));
   },
 
   // ------------------------------ 3RD PARTY AUTHENTICATION HELPERS
