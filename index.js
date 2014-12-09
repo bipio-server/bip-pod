@@ -1338,7 +1338,7 @@ Pod.prototype = {
     });
   },*/
 
-  _httpStreamToFile : function(url, outFile, cb, exports, fileStruct) {
+  _httpStreamToFile : function(url, outFile, cb) {
     var self = this;
 
     self.cdn.save(outFile, request.get(url), cb);
@@ -1639,13 +1639,17 @@ Pod.prototype = {
         }
 
         if (haveRequiredFields) {
+
+          var invokeMethod = 'invoke' === this.getTriggerType() ? 'invoke' : 'trigger';
+
           //
-          this.actions[action].invoke(imports, channel, sysImports, contentParts, function(err, exports) {
+          this.actions[action][invokeMethod](imports, channel, sysImports, contentParts, function(err, exports) {
             if (err) {
               self.log(err, channel, 'error');
             }
             next.apply(self, arguments);
           });
+
 
         } else {
           errStr = 'Missing Required Field(s):' + missingFields.join();
