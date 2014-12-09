@@ -1642,6 +1642,11 @@ Pod.prototype = {
 
           var invokeMethod = 'invoke' === this.getTriggerType() ? 'invoke' : 'trigger';
 
+          // @deprecate -- when all trigger actions support 'trigger' method
+          if (!this.actions[action][invokeMethod]) {
+            invokeMethod = 'invoke';
+          }
+
           //
           this.actions[action][invokeMethod](imports, channel, sysImports, contentParts, function(err, exports) {
             if (err) {
