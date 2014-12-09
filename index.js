@@ -479,6 +479,9 @@ Pod.prototype = {
 
         // add to action collection
         self.actions[actionName] = action;
+      } else {
+        // drop disabled schemas
+        delete self.getActionSchemas()[actionName];
       }
     });
 
