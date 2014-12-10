@@ -707,7 +707,7 @@ Pod.prototype = {
 
   // tests whether renderer is available for an action
   isRenderer : function(action, renderer) {
-    return this.getBPMAttr('actions.' + action + '.rpcs.' + renderer) !== null;
+    return 'invoke' === renderer || this.getBPMAttr('actions.' + action + '.rpcs.' + renderer) !== null;
   },
 
   testImport : function(action, importName) {
