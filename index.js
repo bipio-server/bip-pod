@@ -417,6 +417,7 @@ Pod.prototype = {
     this.$resource.uuid = uuid;
     this.$resource.tldtools = tldtools;
     this.$resource.sanitize = validator.sanitize;
+    this.$resource._ = _;
 
     this.$resource.accumulateFilter = this.accumulateFilter;
 
