@@ -336,6 +336,10 @@ Pod.prototype = {
       this._logger = logger;
     }
 
+    if (cdn) {
+      this.cdn = cdn;
+    }
+
     // register generic tracker
     var tracker = require('./models/channel_pod_tracking');
     this._dao.registerModel(tracker);
@@ -1420,7 +1424,7 @@ Pod.prototype = {
 
   // returns the file based data dir for this pod
   getDataDir: function(channel, action, next) {
-    return this._createChannelDir(DATA_DIR, channel, action, next);
+    return this._createChannelDir('', channel, action, next);
   },
 
   // remove datadir and all of its contents
