@@ -346,14 +346,12 @@ Pod.prototype = {
     this._dao.registerModel(tracker);
 
     // create pod tracking container for duplicate entities
-    if (this._trackDuplicates) {
+    if (this.getTrackDuplicates()) {
       var podDupTracker = _.clone(require('./models/dup'));
 
       podDupTracker.entityName = this.getDataSourceName(podDupTracker.entityName);
 
       this._dao.registerModel(podDupTracker);
-
-//      this.$resource.dupFilter = this.dupFilter;
     }
 
     // register pod data sources
@@ -579,6 +577,11 @@ Pod.prototype = {
   getRPCs : function() {
     return this.getBPMAttr('rpcs') || {};
   },
+
+  getTrackDuplicates : function() {
+    return this.getBPMAttr('trackDuplicates') || false;
+  },
+
 
   // AUTH
 
@@ -1521,13 +1524,24 @@ Pod.prototype = {
     this._dao.removeFilter(modelName, filter, next);
   },
 
+  // expires duplicates
+  _expireDups : function(channel, numDays, next) {
+    var filter = {
+        channel_id : channel.id
+      },
+      modelName = this.getDataSourceName('dup'),
+      maxTime = (new Date()).getTime() - (numDays * 24 * 60 * 60 * 1000);
+
+    this._dao.expire(modelName, filter, maxTime, next);
+  },
+
   /**
     * Runs the teardown for a pod action if one exists
     */
   teardown : function(action, channel, accountInfo, next) {
     var self = this;
     if (this.actions[action] && this.actions[action].teardown) {
-      if (this._trackDuplicates) {
+      if (this.getTrackDuplicates()) {
         // confirm teardown and drop any dup tracking from database
         this.actions[action].teardown(channel, accountInfo, function(err, modelName, result) {
           next(err, modelName, result);
@@ -1537,7 +1551,7 @@ Pod.prototype = {
         this.actions[action].teardown(channel, accountInfo, next);
       }
     } else {
-      if (this._trackDuplicates) {
+      if (this.getTrackDuplicates()) {
         self._dupTeardown(channel);
       }
       next(false, 'channel', channel);
