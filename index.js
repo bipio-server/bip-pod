@@ -279,6 +279,7 @@ function Pod(metadata, init) {
     timezone : 'UTC',
     cdnPublicBaseURL : '',
     emitterBaseURL : '',
+    cdnBasePath : '',
     config : {}
   };
 
@@ -1429,24 +1430,24 @@ Pod.prototype = {
 
   // remove datadir and all of its contents
   rmDataDir : function(channel, action, next) {
-    return this._rmChannelDir(DATA_DIR, channel, action, next);
+    return this._rmChannelDir('', channel, action, next);
   },
 
   // -------- CDN Directory interfaces
 
   // gets public cdn
   getCDNDir : function(channel, action, next) {
-    return this._createChannelDir(CDN_DIR, channel, action, next);
+    return this._createChannelDir(this.options.cdnBasePath, channel, action, next);
   },
 
   // removes cdn dir and all of its contents
   rmCDNDir : function(channel, action, next) {
-    return this._rmChannelDir(CDN_DIR, channel, action, next);
+    return this._rmChannelDir(this.options.cdnBasePath, channel, action, next);
   },
 
   // removes cdn data by age
   expireCDNDir : function(channel, action, ageDays) {
-    return this._expireChannelDir(CDN_DIR, channel, action, ageDays);
+    return this._expireChannelDir(this.options.cdnBasePath, channel, action, ageDays);
   },
 
   // -------------------------------------------------------------------------
