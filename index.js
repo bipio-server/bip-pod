@@ -426,6 +426,8 @@ Pod.prototype = {
 
     this.$resource.accumulateFilter = this.accumulateFilter;
 
+    this.$resource.options = self.options;
+
     this.$resource.log = (function(scope) {
       return function() {
         scope.log.apply(scope, arguments);
@@ -439,6 +441,7 @@ Pod.prototype = {
     this.$resource.getDataDir = this.getDataDir;
     this.$resource.getCDNDir = this.getCDNDir;
     this.$resource.expireCDNDir = this.expireCDNDir;
+    this.$resource.getCDNURL = this.getCDNURL;
 
     this.$resource._httpGet = this._httpGet;
     this.$resource._httpPost = this._httpPost;
@@ -570,7 +573,7 @@ Pod.prototype = {
   },
 
   getIcon : function() {
-    return this.options.cdnPublicBaseURL + this.getName() + '.png';
+    return this.options.cdnPublicBaseURL + '/pods/' + this.getName() + '.png';
   },
 
   getRPCs : function() {
@@ -1436,8 +1439,13 @@ Pod.prototype = {
   // -------- CDN Directory interfaces
 
   // gets public cdn
-  getCDNDir : function(channel, action, next) {
-    return this._createChannelDir(this.options.cdnBasePath, channel, action, next);
+  getCDNDir : function(channel, action, suffix) {
+    var prefix = this.options.cdnBasePath + (suffix ? ('/' + suffix) : '');
+    return this._createChannelDir(prefix, channel, action);
+
+    var prefix = this.options.cdnBasePath + (suffix ? ('/' + suffix) : '');
+    // @return [ 'cdn relative directory', 'cdn fs prefix' ]
+    return [ this._createChannelDir(prefix, channel, action), prefix ];
   },
 
   // removes cdn dir and all of its contents
@@ -1448,6 +1456,10 @@ Pod.prototype = {
   // removes cdn data by age
   expireCDNDir : function(channel, action, ageDays) {
     return this._expireChannelDir(this.options.cdnBasePath, channel, action, ageDays);
+  },
+
+  getCDNURL : function() {
+    return this.options.cdnPublicBaseURL;
   },
 
   // -------------------------------------------------------------------------
