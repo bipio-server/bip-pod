@@ -178,8 +178,10 @@ var helper = {
       for (var i = 0; i < attrLen; i++) {
         src[i] = helper.naturalize(src[i]);
       }
+
     } else if (helper.isString(src)) {
       src = validator.sanitize(src).entityDecode();
+
     } else if (helper.isObject(src)) {
       var newSrc = {};
       for (key in src) {
@@ -574,8 +576,8 @@ Pod.prototype = {
     return this.options.cdnPublicBaseURL + '/pods/' + this.getName() + '.png';
   },
 
-  getRPCs : function() {
-    return this.getBPMAttr('rpcs') || {};
+  getRPCs : function(rpc) {
+    return this.getBPMAttr('rpcs' + (rpc ? ('.' + rpc) : '' )) || {};
   },
 
   getTrackDuplicates : function() {
@@ -1282,76 +1284,6 @@ Pod.prototype = {
   },
 
   // -------------------------------------------------- CDN HELPERS
-
-  /*_cdnFileSave : function(readableStream, filename, options, next) {
-    if ('function' === typeof persist) {
-      next = options;
-      options = {};
-    }
-  },
-
-  // Returns a readable file stream
-
-  _cdnFileGet : function(fileStruct, next) {
-    next(false, fileStruct, fs.createReadStream(path.join(fileStruct.localpath)));
-  },*/
-
-  /**
-     * Downloads file from url.  If the file exists, then stats the existing
-     * file
-     */
-  /*_httpStreamToFile : function(url, outFile, cb, exports, fileStruct) {
-    var self = this,
-    outLock = outFile + '.lock';
-
-    //check file's existence
-    fs.exists(outLock, function(exists) {
-      if (exists) {
-        self._logger.call(self,  self.getName() + ' LOCKED, skipping [' + outFile + ']');
-
-      } else {
-        self._logger.call(self,  self.getName() + ' writing to [' + outFile + ']');
-        fs.exists(outFile, function(exists) {
-          if (exists) {
-            fs.stat(outFile, function(err, stats) {
-              if (err) {
-                self._logger.call(self, err, 'error');
-                next(true);
-              } else {
-                self._logger.call(self,  self.getName() + ' CACHED, skipping [' + outFile + ']');
-                fileStruct.size = stats.size;
-                cb(false, exports, fileStruct);
-              }
-            });
-          } else {
-            fs.open(outLock, 'w', function() {
-              self._logger.call(self,  self.getName() + ' FETCH [' + url + '] > [' + outFile + ']');
-              request.get(
-                url,
-                function(exports, fileStruct) {
-                  return function(error, res, body) {
-                    fs.unlink(outLock);
-                    if (!error && res.statusCode == 200) {
-                      fs.stat(outFile, function(err, stats) {
-                        if (err) {
-                          self._logger.call(self, self.getName() + ' ' + err, 'error');
-                          next(true);
-                        } else {
-                          self._logger.call(self,  self.getName() + ' done [' + outFile + ']');
-                          fileStruct.size = stats.size;
-                          cb(false, exports, fileStruct);
-                        }
-                      });
-                    }
-                  }
-                }(exports, fileStruct)
-                ).pipe(fs.createWriteStream(outFile));
-            });
-          }
-        });
-      }
-    });
-  },*/
 
   _httpStreamToFile : function(url, outFile, cb) {
     var self = this;
