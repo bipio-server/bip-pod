@@ -1442,7 +1442,6 @@ Pod.prototype = {
 
     if (this.actions[action] && this.actions[action].setup) {
       this.actions[action].setup(channel, accountInfo, function(err) {
-        console.log(arguments);
         if (err) {
           self.log(err, channel, 'error');
         }
