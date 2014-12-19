@@ -1432,6 +1432,8 @@ Pod.prototype = {
      * @paran next {Function} callback
      */
   setup : function(action, channel, accountInfo, auth, next) {
+    var self = this;
+
     if (!next && 'function' === typeof auth) {
       next = auth;
     } else {
@@ -1439,10 +1441,15 @@ Pod.prototype = {
     }
 
     if (this.actions[action] && this.actions[action].setup) {
-      this.actions[action].setup(channel, accountInfo, next);
+      this.actions[action].setup(channel, accountInfo, function(err) {
+        console.log(arguments);
+        if (err) {
+          self.log(err, channel, 'error');
+        }
+        next(err);
+      });
     } else {
-      //next(200);
-      next(false, 'channel', channel, 200);
+      next(false);
     }
   },
 
@@ -1475,18 +1482,26 @@ Pod.prototype = {
     if (this.actions[action] && this.actions[action].teardown) {
       if (this.getTrackDuplicates()) {
         // confirm teardown and drop any dup tracking from database
-        this.actions[action].teardown(channel, accountInfo, function(err, modelName, result) {
-          next(err, modelName, result);
+        this.actions[action].teardown(channel, accountInfo, function(err) {
+          if (err) {
+            self.log(err, channel, 'error');
+          }
+          next(err);
           self._dupTeardown(channel);
         });
       } else {
-        this.actions[action].teardown(channel, accountInfo, next);
+        this.actions[action].teardown(channel, accountInfo, function(err) {
+          if (err) {
+            self.log(err, channel, 'error');
+          }
+          next(err);
+        });
       }
     } else {
       if (this.getTrackDuplicates()) {
         self._dupTeardown(channel);
       }
-      next(false, 'channel', channel);
+      next(false);
     }
   },
 
