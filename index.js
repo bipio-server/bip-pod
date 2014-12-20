@@ -772,7 +772,7 @@ Pod.prototype = {
       this._logger.call(this,
         channel.action
         + ':'
-        + (channel.owner_id ? channel.owner_id : 'system'),
+        + (channel.owner_id ? channel.owner_id : 'system')
         + ':'
         + message,
         level);
@@ -1644,7 +1644,6 @@ Pod.prototype = {
             }
             next.apply(self, arguments);
           });
-
 
         } else {
           errStr = 'Missing Required Field(s):' + missingFields.join();
