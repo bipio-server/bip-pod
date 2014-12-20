@@ -378,7 +378,8 @@ Pod.prototype = {
     }
 
     // register the oauth strategy
-    if ((this.getAuthType() === 'oauth') && (options.oauth)) {
+
+    if ((this.getAuthType() === 'oauth') && (options.config.oauth)) {
       var auth = self.getAuth(),
         pProvider = (auth.passport && auth.passport.provider)
           ? auth.passport.provider
