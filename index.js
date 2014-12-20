@@ -1432,11 +1432,20 @@ Pod.prototype = {
      * @paran next {Function} callback
      */
   setup : function(action, channel, accountInfo, auth, next) {
-    var self = this;
+    var self = this,
+      config = this.getConfig();
 
     if (!next && 'function' === typeof auth) {
       next = auth;
     } else {
+      if (self.isOAuth()) {
+        if (!auth.oauth) {
+          auth.oauth = {};
+        }
+        _.each(config.oauth, function(value, key) {
+          auth.oauth[key] = value;
+        });
+      }
       accountInfo._setupAuth = auth;
     }
 
