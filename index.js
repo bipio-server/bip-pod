@@ -426,6 +426,7 @@ Pod.prototype = {
     this.$resource._ = _;
 
     this.$resource.accumulateFilter = this.accumulateFilter;
+    this.$resource.dupFilter = this.dupFilter;
 
     this.$resource.options = self.options;
 
