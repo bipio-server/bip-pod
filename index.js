@@ -1825,14 +1825,14 @@ Pod.prototype = {
     */
   trackingStart : function(channel, accountInfo, fromNow, next) {
     var nowTime = helper.nowUTCSeconds(),
-    trackingStruct = {
-      owner_id : channel.owner_id,
-      created : nowTime,
-      last_poll : fromNow ? nowTime : 0,
-      channel_id : channel.id
-    };
+      trackingStruct = {
+        owner_id : channel.owner_id,
+        created : nowTime,
+        last_poll : fromNow ? nowTime : 0,
+        channel_id : channel.id
+      };
 
-    var model = self._dao.modelFactory('channel_pod_tracking', trackingStruct);
+    var model = this._dao.modelFactory('channel_pod_tracking', trackingStruct);
     this._dao.create(model, next, accountInfo);
   },
 
@@ -1913,6 +1913,21 @@ Pod.prototype = {
         }
       }
     });
+  },
+
+  // drops a duplicate filter by bipId/channel pair
+  dupRemove : function(bipId, channel, next) {
+    var self = this,
+      modelName = this.getDataSourceName('dup');
+
+    self._dao.removeFilter(
+      modelName,
+      {
+        bip_id : bipId,
+        channel_id : channel.id
+      },
+      next
+    );
   },
 
   /**
