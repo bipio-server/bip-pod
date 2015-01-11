@@ -57,12 +57,12 @@ var helper = {
     return helper.toUTC(this.now());
   },
 
-  nowUTCSeconds: function() {
-    var d = helper.toUTC(helper.now());
+  nowUTCMS: function() {
+    return helper.nowUTC().getTime();
+  },
 
-    // @todo looks like a bug in datejs, no seconds for getTime?
-    seconds = d.getSeconds() + (d.getMinutes() * 60) + (d.getHours() * 60 * 60);
-    return (d.getTime() + seconds);
+  nowUTCSeconds: function() {
+    return helper.nowUTCMS() / 1000;
   },
 
     // Returns all ipv4/6 A records for a host
@@ -103,14 +103,6 @@ var helper = {
       date.getUTCMinutes(),
       date.getUTCSeconds()
     );
-  },
-
-  nowUTCSeconds: function() {
-    var d = helper.toUTC(this.now());
-
-    // @todo looks like a bug in datejs, no seconds for getTime?
-    seconds = d.getSeconds() + (d.getMinutes() * 60) + (d.getHours() * 60 * 60);
-    return (d.getTime() + seconds);
   },
 
   isObject: function(src) {
@@ -663,6 +655,10 @@ Pod.prototype = {
     return this.getBPMAttr('actions.' + action + '.imports');
   },
 
+  getActionRPCs : function(action, rpc) {
+    return this.getBPMAttr('actions.' + action + '.rpcs' + (rpc ? ('.' + rpc) : ''));
+  },
+
   getActionConfigDefaults : function(action) {
     var defaults = {},
       config = this.getActionConfig(action);
@@ -1198,7 +1194,7 @@ Pod.prototype = {
     }
 
     request(params, function(error, res, body) {
-        if (-1 !== res.headers['content-type'].indexOf('json')) {
+        if (-1 !== res.headers['content-type'].indexOf('json') || -1 !== res.headers['content-type'].indexOf('javascript')) {
           try {
             body = JSON.parse(body);
           } catch (e) {
@@ -1895,7 +1891,7 @@ Pod.prototype = {
         value : objVal
       },
       props = {
-        last_update : helper.nowUTCSeconds(),
+        last_update : helper.nowUTCMS(),
         owner_id : channel.owner_id,
         channel_id : channel.id,
         bip_id : sysImports.bip.id,
