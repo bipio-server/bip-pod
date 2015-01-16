@@ -1575,7 +1575,7 @@ Pod.prototype = {
         }
       }
 
-     try {
+//     try {
 
         // apply channel config defaults into imports, if required
         // fields don't already exist
@@ -1646,11 +1646,11 @@ Pod.prototype = {
         } else {
           errStr = 'Missing Required Field(s):' + missingFields.join();
         }
-
+/*
      } catch (e) {
        errStr = 'EXCEPT ' + e.toString();
      }
-
+*/
       if (errStr) {
 
        self.log(errStr, channel, 'error');

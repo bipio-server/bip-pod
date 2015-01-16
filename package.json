@@ -1,6 +1,6 @@
 {
   "name": "bip-pod",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": "Michael Pearson",
   "description": "Bipio's Pod bridge",
   "keywords": [
@@ -36,7 +36,7 @@
     "request": ">= 2.2.9",
     "tldtools": "0.0.19",
     "underscore": "^1.7.0",
-    "validator": "^3.22.1"
+    "validator": "1.5.1"
   },
   "engines": {
     "node": ">= 0.10.0"
