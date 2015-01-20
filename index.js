@@ -133,6 +133,10 @@ var helper = {
     return (false === input || /0|no|n|false/g.test(input));
   },
 
+  sanitize : function(str) {
+    return validator.sanitize(str);
+  },
+
   scrub: function(str, noEscape) {
     var retStr = helper.sanitize(str).xss();
     retStr = helper.sanitize(retStr).trim();
