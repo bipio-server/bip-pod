@@ -1188,6 +1188,7 @@ Pod.prototype = {
     }
 
     params.headers = headerStruct;
+    params.gzip = true;
 
     if (options) {
       for (var k in options) {
@@ -1235,6 +1236,7 @@ Pod.prototype = {
     }
 
     params.headers = headerStruct;
+    params.gzip = true;
 
     if (options) {
       for (var k in options) {
@@ -1275,6 +1277,7 @@ Pod.prototype = {
     }
 
     params.headers = headerStruct;
+    params.gzip = true;
 
     if (putData) {
       params.json = putData;
