@@ -582,6 +582,9 @@ Pod.prototype = {
     return this.getBPMAttr('trackDuplicates') || false;
   },
 
+  getTags : function() {
+    return this.getBPMAttr('tags');
+  },
 
   // AUTH
 
@@ -1712,7 +1715,8 @@ Pod.prototype = {
         'auth' : this.getAuth(),
         'rpcs' : this.getRPCs(),
         'url' : this.getBPMAttr('url'),
-        'actions' : this.getBPMAttr('actions')
+        'actions' : this.getBPMAttr('actions'),
+        'tags' : this.getTags()
       },
       authType = this.getAuth().strategy;
 
