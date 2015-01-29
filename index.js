@@ -1608,7 +1608,7 @@ Pod.prototype = {
         // transpose from config to imports (no need to reference channel.config in pods)
         _.each(channel.config, function(value, key) {
           // convert to boolean if not already
-          if ('boolean' === configSchema[key].type) {
+          if (configSchema[key] && 'boolean' === configSchema[key].type) {
             channel.config[key] = helper.isTruthy(value) ? true : false;
           }
 
