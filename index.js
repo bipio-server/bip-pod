@@ -1585,7 +1585,7 @@ Pod.prototype = {
         }
       }
 
-//     try {
+     try {
 
         // apply channel config defaults into imports, if required
         // fields don't already exist
@@ -1595,7 +1595,10 @@ Pod.prototype = {
           errStr;
 
         // apply config defaults
-        var configDefaults = this.getActionConfigDefaults(action);
+        var configDefaults = this.getActionConfigDefaults(action),
+          configSchema = this.getActionConfig(action).properties,
+          importSchema = this.getActionImports(action).properties;
+
         _.each(configDefaults, function(value, key) {
           if (!channel.config[key]) {
             channel.config[key] = value;
@@ -1604,6 +1607,11 @@ Pod.prototype = {
 
         // transpose from config to imports (no need to reference channel.config in pods)
         _.each(channel.config, function(value, key) {
+          // convert to boolean if not already
+          if ('boolean' === configSchema[key].type) {
+            channel.config[key] = helper.isTruthy(value) ? true : false;
+          }
+
           if (!imports[key]) {
             imports[key] = channel.config[key];
           }
@@ -1619,6 +1627,11 @@ Pod.prototype = {
 
         // trim empty imports
         for (var k in imports) {
+          // convert to boolean if not already
+          if (importSchema[key] && 'boolean' === importSchema[key].type) {
+            imports[k] = helper.isTruthy(imports[k]) ? true : false;
+          }
+
           if (imports.hasOwnProperty(k) && '' === imports[k]) {
             delete imports[k];
           }
@@ -1656,11 +1669,11 @@ Pod.prototype = {
         } else {
           errStr = 'Missing Required Field(s):' + missingFields.join();
         }
-/*
+
      } catch (e) {
        errStr = 'EXCEPT ' + e.toString();
      }
-*/
+
       if (errStr) {
 
        self.log(errStr, channel, 'error');
