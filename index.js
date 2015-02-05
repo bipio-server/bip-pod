@@ -1202,7 +1202,7 @@ Pod.prototype = {
     }
 
     request(params, function(error, res, body) {
-        if (-1 !== res.headers['content-type'].indexOf('json') || -1 !== res.headers['content-type'].indexOf('javascript')) {
+        if (res && res.headers && -1 !== res.headers['content-type'].indexOf('json') || -1 !== res.headers['content-type'].indexOf('javascript')) {
           try {
             body = JSON.parse(body);
           } catch (e) {
