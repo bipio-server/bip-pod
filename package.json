@@ -37,7 +37,7 @@
     "request": ">= 2.2.9",
 	"sanitize-html": ">=1.6.0",
     "tldtools": "0.0.19",
-    "underscore": "^1.7.0",
+    "underscore": "^1.7.0"
   },
   "engines": {
     "node": ">= 0.10.0"
