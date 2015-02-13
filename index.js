@@ -21,23 +21,26 @@
  *
  * A Bipio Commercial OEM License may be obtained via support@beta.bip.io
  */
-var passport = require('passport'),
-  request = require('request'),
-  moment = require('moment'),
-  util = require('util'),
-  fs = require('fs'),
-  JSONPath = require('JSONPath'),
-  extend = require('extend');
-  uuid = require('node-uuid'),
-  mime = require('mime'),
-  cron = require('cron'),
-  _ = require('underscore'),
-  tldtools = require('tldtools'),
-  ipaddr = require('ipaddr.js'),
-  dns = require('dns'),
-  uuid = require('node-uuid'),
+var 
   crypto = require('crypto'),
-  validator = require('validator');
+  cron = require('cron'),
+  dns = require('dns'),
+  ent = require('ent'),
+  encode = require('ent/encode'),
+  decode = require('ent/decode'),
+  extend = require('extend'),
+  fs = require('fs'),
+  ipaddr = require('ipaddr.js'),
+  JSONPath = require('JSONPath'),
+  mime = require('mime'),
+  moment = require('moment'),
+  passport = require('passport'),
+  request = require('request'),
+  sanitize = require('sanitize-html'),
+  tldtools = require('tldtools'),
+  util = require('util'),
+  uuid = require('node-uuid'),
+  _ = require('underscore');
 
 // utility resources
 var helper = {
@@ -134,11 +137,11 @@ var helper = {
   },
 
   sanitize : function(str) {
-    return validator.sanitize(str);
+    return sanitize(str);
   },
 
   scrub: function(str, noEscape) {
-    var retStr = helper.sanitize(str).xss();
+    var retStr = helper.sanitize(str);
     retStr = helper.sanitize(retStr).trim();
     return retStr;
   },
@@ -176,12 +179,14 @@ var helper = {
       }
 
     } else if (helper.isString(src)) {
-      src = validator.sanitize(src).entityDecode();
+      src = sanitize(src);
+	  src = decode(src);
 
     } else if (helper.isObject(src)) {
       var newSrc = {};
       for (key in src) {
-        newKey = validator.sanitize(key).entityDecode();
+        newKey = sanitize(key);
+		newKey = decode(newKey);
         newSrc[newKey] = helper.naturalize(src[key]);
       }
       src = newSrc;
@@ -418,7 +423,7 @@ Pod.prototype = {
     this.$resource.mime = mime;
     this.$resource.uuid = uuid;
     this.$resource.tldtools = tldtools;
-    this.$resource.sanitize = validator.sanitize;
+    this.$resource.sanitize = sanitize;
     this.$resource._ = _;
 
     this.$resource.accumulateFilter = this.accumulateFilter;

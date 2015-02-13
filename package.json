@@ -1,6 +1,6 @@
 {
   "name": "bip-pod",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "author": "Michael Pearson",
   "description": "Bipio's Pod bridge",
   "keywords": [
@@ -26,6 +26,7 @@
     "JSONPath": "^0.10.0",
     "cron": "^1.0.4",
     "dns": "^0.2.2",
+    "ent": ">=2.2.0",
     "extend": ">=1.1.3",
     "ipaddr.js": "^0.1.5",
     "mime": ">=1.2.11",
@@ -34,9 +35,9 @@
     "passport": ">=0.1.15",
     "pkginfo": "0.2.x",
     "request": ">= 2.2.9",
+	"sanitize-html": ">=1.6.0",
     "tldtools": "0.0.19",
     "underscore": "^1.7.0",
-    "validator": "1.5.1"
   },
   "engines": {
     "node": ">= 0.10.0"
