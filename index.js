@@ -500,7 +500,6 @@ Pod.prototype = {
   // tests whether host is in blacklist
   hostBlacklisted : function(host, whitelist, next) {
     var blacklist = this.options.blacklist;
-
     helper.resolveHost(host, function(err, aRecords, resolvedHost) {
       var inBlacklist = false;
       if (!err) {
@@ -787,6 +786,7 @@ Pod.prototype = {
   _isVisibleHost : function(host, next, channel, whitelist) {
     var self = this;
     self.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
+
       if (err) {
         if (channel) {
           self.log(err, channel, 'error');
