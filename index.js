@@ -1905,34 +1905,36 @@ Pod.prototype = {
   // *** NOTE : Requires a 'dup' model for Pod
   // scoped to $resource (please fix)
   dupFilter : function(obj, key, channel, sysImports, next) {
-    var self = this,
-      modelName = this.getDataSourceName('dup'),
-      objVal = helper.JSONPath(obj, key),
-      filter = {
-        owner_id : channel.owner_id,
-        channel_id : channel.id,
-        bip_id : sysImports.bip.id,
-        value : objVal
-      },
-      props = {
-        last_update : helper.nowUTCMS(),
-        owner_id : channel.owner_id,
-        channel_id : channel.id,
-        bip_id : sysImports.bip.id,
-        value : objVal
-      };
+    if (obj) {
+      var self = this,
+        modelName = this.getDataSourceName('dup'),
+        objVal = helper.JSONPath(obj, key),
+        filter = {
+          owner_id : channel.owner_id,
+          channel_id : channel.id,
+          bip_id : sysImports.bip.id,
+          value : objVal
+        },
+        props = {
+          last_update : helper.nowUTCMS(),
+          owner_id : channel.owner_id,
+          channel_id : channel.id,
+          bip_id : sysImports.bip.id,
+          value : objVal
+        };
 
-    self.dao.find(modelName, filter, function(err, result) {
-      if (err) {
-        next(err);
-      } else {
-        if (!result || (result && result.value != objVal)) {
-          self.dao.upsert(modelName, filter, props, function(err, result) {
-            next(err, obj);
-          });
+      self.dao.find(modelName, filter, function(err, result) {
+        if (err) {
+          next(err);
+        } else {
+          if (!result || (result && result.value != objVal)) {
+            self.dao.upsert(modelName, filter, props, function(err, result) {
+              next(err, obj);
+            });
+          }
         }
-      }
-    });
+      });
+    }
   },
 
   // drops a duplicate filter by bipId/channel pair
