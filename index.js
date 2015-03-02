@@ -1293,15 +1293,14 @@ Pod.prototype = {
 
   // -------------------------------------------------- CDN HELPERS
 
-  _httpStreamToFile : function(url, outFile, cb) {
+  _httpStreamToFile : function(url, outFile, cb, persist) {
     var self = this;
-
-    self.cdn.save(outFile, request.get(url), cb);
+    self.file.save(outFile, request.get(url), persist, cb);
   },
 
-  _createChannelDir : function(pfx, channel, action, next) {
+  _createChannelDir : function(prefix, channel, action, next) {
     var self = this,
-      dDir = pfx + '/channels/';
+      dDir = prefix + '/channels/';
 
     if (undefined != channel.owner_id) {
       dDir += channel.owner_id + '/';
@@ -1383,12 +1382,9 @@ Pod.prototype = {
 
   // gets public cdn
   getCDNDir : function(channel, action, suffix) {
+  
     var prefix = this.options.cdnBasePath + (suffix ? ('/' + suffix) : '');
     return this._createChannelDir(prefix, channel, action);
-
-    var prefix = this.options.cdnBasePath + (suffix ? ('/' + suffix) : '');
-    // @return [ 'cdn relative directory', 'cdn fs prefix' ]
-    return [ this._createChannelDir(prefix, channel, action), prefix ];
   },
 
   // removes cdn dir and all of its contents
