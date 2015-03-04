@@ -786,8 +786,8 @@ Pod.prototype = {
   _isVisibleHost : function(host, next, channel, whitelist) {
     var self = this;
     self.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
-
       if (err) {
+        next(err);
         if (channel) {
           self.log(err, channel, 'error');
         } else {
@@ -1382,7 +1382,7 @@ Pod.prototype = {
 
   // gets public cdn
   getCDNDir : function(channel, action, suffix) {
-  
+
     var prefix = this.options.cdnBasePath + (suffix ? ('/' + suffix) : '');
     return this._createChannelDir(prefix, channel, action);
   },
