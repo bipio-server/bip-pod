@@ -21,22 +21,21 @@
  *
  * A Bipio Commercial OEM License may be obtained via support@beta.bip.io
  */
-var passport = require('passport'),
-  request = require('request'),
-  moment = require('moment'),
-  util = require('util'),
-  fs = require('fs'),
-  JSONPath = require('JSONPath'),
-  extend = require('extend');
-  uuid = require('node-uuid'),
-  mime = require('mime'),
-  cron = require('cron'),
-  _ = require('underscore'),
-  tldtools = require('tldtools'),
-  ipaddr = require('ipaddr.js'),
-  dns = require('dns'),
-  uuid = require('node-uuid'),
+var cron = require('cron'),
   crypto = require('crypto'),
+  dns = require('dns'),
+  extend = require('extend');
+  fs = require('fs'),
+  ipaddr = require('ipaddr.js'),
+  JSONPath = require('JSONPath'),
+  mime = require('mime'),
+  moment = require('moment'),
+  passport = require('passport'),
+  request = require('request'),
+  tldtools = require('tldtools'),
+  _ = require('underscore'),
+  util = require('util'),
+  uuid = require('node-uuid'),
   validator = require('validator');
 
 // utility resources
@@ -88,21 +87,6 @@ var helper = {
       input = JSON.parse(input);
     }
     return input;
-  },
-
-  now : function() {
-    return new Date();
-  },
-
-  toUTC: function(date) {
-    return new Date(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      date.getUTCHours(),
-      date.getUTCMinutes(),
-      date.getUTCSeconds()
-    );
   },
 
   isObject: function(src) {
