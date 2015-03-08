@@ -339,37 +339,40 @@ Pod.prototype = {
       this.cdn = cdn;
     }
 
-    // register generic tracker
-    var tracker = require('./models/channel_pod_tracking');
-    this._dao.registerModel(tracker);
+    if (this._dao) {
 
-    // create pod tracking container for duplicate entities
-    if (this.getTrackDuplicates()) {
-      var podDupTracker = _.clone(require('./models/dup'));
+      // register generic tracker
+      var tracker = require('./models/channel_pod_tracking');
+      this._dao.registerModel(tracker);
 
-      podDupTracker.entityName = this.getDataSourceName(podDupTracker.entityName);
+      // create pod tracking container for duplicate entities
+      if (this.getTrackDuplicates()) {
+        var podDupTracker = _.clone(require('./models/dup'));
 
-      this._dao.registerModel(podDupTracker);
-    }
+        podDupTracker.entityName = this.getDataSourceName(podDupTracker.entityName);
 
-    // register pod data sources
-    for (var dsName in dataSources) {
-      if (dataSources.hasOwnProperty(dsName)) {
-        dataSource = _.clone(dataSources[dsName]);
+        this._dao.registerModel(podDupTracker);
+      }
 
-        // namespace the model + create an internal representation
-        dataSource.entityName = this.getDataSourceName(dsName);
-        dataSource.entitySchema = dataSource.properties;
-        dataSource.compoundKeyConstraints  = _.object(
-          _.map(
-            dataSource.keys,
-            function(x) {
-              return [x, 1]
-            }
-          )
-        );
+      // register pod data sources
+      for (var dsName in dataSources) {
+        if (dataSources.hasOwnProperty(dsName)) {
+          dataSource = _.clone(dataSources[dsName]);
 
-        this._dao.registerModel(dataSource);
+          // namespace the model + create an internal representation
+          dataSource.entityName = this.getDataSourceName(dsName);
+          dataSource.entitySchema = dataSource.properties;
+          dataSource.compoundKeyConstraints  = _.object(
+            _.map(
+              dataSource.keys,
+              function(x) {
+                return [x, 1]
+              }
+            )
+          );
+
+          this._dao.registerModel(dataSource);
+        }
       }
     }
 
@@ -1624,7 +1627,7 @@ Pod.prototype = {
         // trim empty imports
         for (var k in imports) {
           // convert to boolean if not already
-          if (importSchema[key] && 'boolean' === importSchema[key].type) {
+          if (importSchema[k] && 'boolean' === importSchema[k].type) {
             imports[k] = helper.isTruthy(imports[k]) ? true : false;
           }
 
