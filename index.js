@@ -1374,6 +1374,10 @@ Pod.prototype = {
     return this._createChannelDir(prefix, channel, action);
   },
 
+  getCDNBaseDir : function(suffix) {
+    return this.options.cdnBasePath + (suffix ? ('/' + suffix) : '');
+  },
+
   // removes cdn dir and all of its contents
   rmCDNDir : function(channel, action, next) {
     return this._rmChannelDir(this.options.cdnBasePath, channel, action, next);
