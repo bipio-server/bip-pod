@@ -338,6 +338,16 @@ Pod.prototype = {
         this._dao.registerModel(podDupTracker);
       }
 
+      // create pod tracking container for duplicate entities
+
+      if (this.getTrackDeltas()) {
+        var podDeltaTracker = _.clone(require('./models/delta'));
+
+        podDeltaTracker.entityName = this.getDataSourceName(podDeltaTracker.entityName);
+
+        this._dao.registerModel(podDeltaTracker);
+      }
+
       // register pod data sources
       for (var dsName in dataSources) {
         if (dataSources.hasOwnProperty(dsName)) {
@@ -410,6 +420,7 @@ Pod.prototype = {
 
     this.$resource.accumulateFilter = this.accumulateFilter;
     this.$resource.dupFilter = this.dupFilter;
+    this.$resource.deltaFilter = this.deltaFilter;
 
     this.$resource.options = self.options;
 
@@ -566,6 +577,10 @@ Pod.prototype = {
 
   getTrackDuplicates : function() {
     return this.getBPMAttr('trackDuplicates') || false;
+  },
+
+  getTrackDeltas : function() {
+    return this.getBPMAttr('trackDeltas') || false;
   },
 
   getTags : function() {
@@ -1572,7 +1587,7 @@ Pod.prototype = {
         }
       }
 
-     try {
+      try {
 
         // apply channel config defaults into imports, if required
         // fields don't already exist
@@ -1657,12 +1672,11 @@ Pod.prototype = {
           errStr = 'Missing Required Field(s):' + missingFields.join();
         }
 
-     } catch (e) {
-       errStr = 'EXCEPT ' + e.toString();
-     }
+       } catch (e) {
+         errStr = 'EXCEPT ' + e.toString();
+       }
 
       if (errStr) {
-
        self.log(errStr, channel, 'error');
        next.call(self, errStr);
       }
@@ -1928,6 +1942,71 @@ Pod.prototype = {
   dupRemove : function(bipId, channel, next) {
     var self = this,
       modelName = this.getDataSourceName('dup');
+
+    self._dao.removeFilter(
+      modelName,
+      {
+        bip_id : bipId,
+        channel_id : channel.id
+      },
+      next
+    );
+  },
+
+  deltaFilter : function(obj, key, channel, sysImports, next) {
+    if (obj) {
+      var self = this,
+        modelName = this.getDataSourceName('delta'),
+        objVal = helper.JSONPath(obj, key),
+        filter = {
+          owner_id : channel.owner_id,
+          channel_id : channel.id,
+          bip_id : sysImports.bip.id
+        },
+        props = {
+          last_update : helper.nowUTCMS(),
+          owner_id : channel.owner_id,
+          channel_id : channel.id,
+          bip_id : sysImports.bip.id,
+          value : objVal
+        };
+
+      self.dao.find(modelName, filter, function(err, result) {
+        if (err) {
+          next(err);
+
+        } else {
+          if (!result || (result && result.value !== objVal )) {
+            var l = Number(result ? result.value : 0),
+              r = Number(objVal),
+              exports = {
+                obj : obj,
+                delta : objVal
+              };
+
+            // if tracking numeric values, exports the difference
+            // of new and old
+            if (!isNaN(l) && !isNaN(r)) {
+              exports.delta = Number(Number(r - l).toFixed(1))
+            }
+
+            next(false, exports);
+          }
+
+          self.dao.upsert(modelName, filter, props, function(err, result) {
+            if (err) {
+              next(err);
+            }
+          });
+        }
+      });
+    }
+  },
+
+  // drops a duplicate filter by bipId/channel pair
+  deltaRemove : function(bipId, channel, next) {
+    var self = this,
+      modelName = this.getDataSourceName('delta');
 
     self._dao.removeFilter(
       modelName,
