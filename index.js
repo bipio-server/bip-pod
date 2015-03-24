@@ -1957,18 +1957,20 @@ Pod.prototype = {
     if (obj) {
       var self = this,
         modelName = this.getDataSourceName('delta'),
-        objVal = helper.JSONPath(obj, key),
+        objVal = helper.JSONPath(obj, key).shift(),
         filter = {
-          owner_id : channel.owner_id,
           channel_id : channel.id,
-          bip_id : sysImports.bip.id
+          owner_id : channel.owner_id,
+          bip_id : sysImports.bip.id,
+          key : key
         },
         props = {
-          last_update : helper.nowUTCMS(),
-          owner_id : channel.owner_id,
           channel_id : channel.id,
+          owner_id : channel.owner_id,
           bip_id : sysImports.bip.id,
-          value : objVal
+          key : key,
+          value : objVal,
+          last_update : helper.nowUTCMS()
         };
 
       self.dao.find(modelName, filter, function(err, result) {

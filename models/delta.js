@@ -14,15 +14,8 @@ Delta = {
       writable : false
     },
 
-    created : {
-      type: Number,
-      renderable: true,
-      writable: false
-    },
-
-    // last append time
-    last_update : {
-      type : Number,
+    bip_id : {
+      type : String,
       renderable : true,
       writable : false
     },
@@ -37,11 +30,25 @@ Delta = {
       type : String,
       renderable : true,
       writable : false
+    },
+
+    created : {
+      type: Number,
+      renderable: true,
+      writable: false
+    },
+
+    // last append time
+    last_update : {
+      type : Number,
+      renderable : true,
+      writable : false
     }
   },
   compoundKeyContraints : {
     channel_id : 1,
     owner_id :1,
+    bip_id :1,
     key : 1
   }
 };
