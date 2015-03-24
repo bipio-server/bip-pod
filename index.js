@@ -495,6 +495,7 @@ Pod.prototype = {
     }
   },
 
+
   // tests whether host is in blacklist
   hostBlacklisted : function(host, whitelist, next) {
     var blacklist = this.options.blacklist;
@@ -520,6 +521,24 @@ Pod.prototype = {
       next(err, inBlacklist, aRecords);
     });
   },
+
+
+  _isVisibleHost : function(host, next, channel, whitelist) {
+    var self = this;
+    self.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
+      if (err) {
+        next(err);
+        if (channel) {
+          self.log(err, channel, 'error');
+        } else {
+          self._logger.call(self, err, 'error');
+        }
+      } else {
+        next(err, blacklisted, resolved);
+      }
+    });
+  },
+
 
   /**
    * Retrieves matching elements from the manfiest with a JSON Path
@@ -571,6 +590,10 @@ Pod.prototype = {
     return this.options.cdnPublicBaseURL + '/pods/' + this.getName() + '.png';
   },
 
+  getRateLimit : function() {
+  	return this.getBPMAttr('rateLimit');
+  },
+
   getRPCs : function(rpc) {
     return this.getBPMAttr('rpcs' + (rpc ? ('.' + rpc) : '' )) || {};
   },
@@ -586,6 +609,8 @@ Pod.prototype = {
   getTags : function() {
     return this.getBPMAttr('tags');
   },
+
+
 
   // AUTH
 
@@ -763,6 +788,33 @@ Pod.prototype = {
     }
   },
 
+
+  // limit the rate at which a fn call can be made.
+  limitRate : function(fn, threshhold, scope) {
+
+	threshhold || (threshhold = 250);
+	var last,
+		deferTimer;
+	return function () {
+		var context = scope || this;
+
+		var now = +new Date,
+			args = arguments;
+		if (last && now < last + threshhold) {
+			// hold on to it
+			clearTimeout(deferTimer);
+			deferTimer = setTimeout(function () {
+				last = now;
+				fn.apply(context, args);
+			}, threshhold);
+		} else {
+			last = now;
+			fn.apply(context, args);
+		}
+	};
+  },
+
+
   /**
      * Logs a message
      */
@@ -785,21 +837,6 @@ Pod.prototype = {
     }
   },
 
-  _isVisibleHost : function(host, next, channel, whitelist) {
-    var self = this;
-    self.hostBlacklisted(host, whitelist, function(err, blacklisted, resolved) {
-      if (err) {
-        next(err);
-        if (channel) {
-          self.log(err, channel, 'error');
-        } else {
-          self._logger.call(self, err, 'error');
-        }
-      } else {
-        next(err, blacklisted, resolved);
-      }
-    });
-  },
 
   // ------------------------------ 3RD PARTY AUTHENTICATION HELPERS
 
@@ -948,10 +985,10 @@ Pod.prototype = {
       } else if (method == 'deauth') {
         this.oAuthUnbind(accountId, function(err) {
           if (!err) {
-            res.send(200);
+            res.sendStatus(200);
           } else {
             self._logger.call(self, err, 'error');
-            res.send(500);
+            res.sendStatus(500);
           }
         });
         ok = true;
@@ -960,7 +997,7 @@ Pod.prototype = {
       } else if (method == 'authstat') {
         ok = true;
       } else if (method == 'denied') {
-        res.send(401);
+        res.sendStatus(401);
       }
     }
 
