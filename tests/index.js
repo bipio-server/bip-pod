@@ -1,5 +1,6 @@
 var assert = require('assert'),
-    should = require('should');
+    should = require('should'),
+    _ = require('underscore');
 
 describe('attach pod (boilerplate)', function() {
   var
@@ -29,11 +30,11 @@ describe('attach pod (boilerplate)', function() {
     pod.init(podName, dao, cdn, logger, options);
   });
 
-  it('can describe pod', function() {
+  xit('can describe pod', function() {
     pod.getName().should.equal(podName);
   });
 
-  it('can provide a (pre-disposed) description', function() {
+  xit('can provide a (pre-disposed) description', function() {
     var descriptions = pod.dispositionDescribe('simple'),
       expectedDisposition = [
         "value",
@@ -47,7 +48,7 @@ describe('attach pod (boilerplate)', function() {
     }
   });
 
-  it('can derive config and imports from a (pre-disposed) payload', function() {
+  xit('can derive config and imports from a (pre-disposed) payload', function() {
     var payload = {
         'imports.value' :'pl_value',
         'config.str_in' : 'pl_str_in',
@@ -78,7 +79,7 @@ describe('attach pod (boilerplate)', function() {
     });
   });
 
-  it('honors action required fields', function(done) {
+  xit('honors action required fields', function(done) {
     var channel = {
         config : {
 
@@ -95,7 +96,7 @@ describe('attach pod (boilerplate)', function() {
     });
   });
 
-  it('can invoke action', function(done) {
+  xit('can invoke action', function(done) {
     var channel = {
         config : {
 
@@ -116,7 +117,7 @@ describe('attach pod (boilerplate)', function() {
   });
 
 
-  it('can provide a (pre-disposed) description including auth', function() {
+  xit('can provide a (pre-disposed) description including auth', function() {
     var oldSchema = pod.getSchema(),
       newSchema = JSON.parse(JSON.stringify(oldSchema));
 
@@ -148,7 +149,7 @@ describe('attach pod (boilerplate)', function() {
     }
   });
 
-  it('can derive config and imports from a (pre-disposed) payload', function() {
+  xit('can derive config and imports from a (pre-disposed) payload', function() {
     var oldSchema = pod.getSchema(),
       newSchema = JSON.parse(JSON.stringify(oldSchema));
 
@@ -199,6 +200,39 @@ describe('attach pod (boilerplate)', function() {
         payload[key + '.' + pKey].should.equal(pVal)
       })
     });
+  });
+
+  it('can rate limit requests', function(next) {
+    var expected = [],
+      resolved = [],
+      iter = 10,
+      rateLimit = 5,
+      reqSec = 1000 / rateLimit; // 5/sec
+
+    var then = (new Date()).getTime();
+
+    for (var i = 1; i <= iter; i++) {
+      expected.push(i);
+
+      (function(i) {
+        pod.limitRate(
+          function() {
+            resolved.push(i);
+            if (i === iter) {
+              now = (new Date()).getTime();
+
+
+              ((now - then) / 1000).should.be.above(iter / rateLimit);
+
+               _.difference(expected, resolved).should.be.empty
+              resolved.should.not.be.empty;
+              next();
+            }
+          },
+          reqSec)();
+      })(i);
+    }
+
   });
 
 });
