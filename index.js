@@ -780,17 +780,16 @@ Pod.prototype = {
     if (this.$resource.cron) {
       if (!this.crons[id]) {
         self._logger.call(self, 'POD:Registering Cron:' + self.getName() + ':' + id);
-          self.crons[id] = new self.$resource.cron.CronJob(
-            period,
-            callback,
-            null,
-            true,
-            self.options.timezone
-          );
+        self.crons[id] = new self.$resource.cron.CronJob(
+          period,
+          callback,
+          null,
+          true,
+          self.options.timezone
+        );
       }
     }
   },
-
 
   // limit the rate at which a fn call can be made.
   _ratePopper : null,
@@ -806,6 +805,8 @@ Pod.prototype = {
       }
     }
 
+    limiters[channel.owner_id].queue.push(fn);
+
     if (!limiters[channel.owner_id].popper) {
       limiters[channel.owner_id].popper = setInterval(function() {
           if (limiters[channel.owner_id].queue.length) {
@@ -817,8 +818,6 @@ Pod.prototype = {
 
         }, 1000 / rateOverride);
     }
-
-    limiters[channel.owner_id].queue.push(fn);
   },
 
 
