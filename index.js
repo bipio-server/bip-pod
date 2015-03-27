@@ -1681,7 +1681,7 @@ Pod.prototype = {
           && actionSchema.imports.required.length) {
 
           for (var i = 0; i < actionSchema.imports.required.length; i++) {
-            if (!imports[actionSchema.imports.required[i]]) {
+            if (!imports[actionSchema.imports.required[i]] && false !== imports[actionSchema.imports.required[i]]) {
               haveRequiredFields = false;
               missingFields.push(actionSchema.imports.required[i]);
             }
