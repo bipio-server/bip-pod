@@ -490,6 +490,11 @@ Pod.prototype = {
       }
     });
 
+    this._limiters = {
+      maxRate : this.getRateLimit(),
+      owners : {}
+    };
+
     if (this._podInit) {
       this._podInit.apply(this);
     }
@@ -609,8 +614,6 @@ Pod.prototype = {
   getTags : function() {
     return this.getBPMAttr('tags');
   },
-
-
 
   // AUTH
 
@@ -790,28 +793,32 @@ Pod.prototype = {
 
 
   // limit the rate at which a fn call can be made.
-  limitRate : function(fn, threshhold, scope) {
+  _ratePopper : null,
 
-	threshhold || (threshhold = 250);
-	var last,
-		deferTimer;
-	return function () {
-		var context = scope || this;
+  limitRate : function(channel, fn, rateOverride) {
+    var queue,
+      limiters = this._limiters.owners,
+      rateOverride = rateOverride || this._limiters.maxRate;
 
-		var now = +new Date,
-			args = arguments;
-		if (last && now < last + threshhold) {
-			// hold on to it
-			clearTimeout(deferTimer);
-			deferTimer = setTimeout(function () {
-				last = now;
-				fn.apply(context, args);
-			}, threshhold);
-		} else {
-			last = now;
-			fn.apply(context, args);
-		}
-	};
+    if (!limiters[channel.owner_id]) {
+      limiters[channel.owner_id] = {
+        queue : []
+      }
+    }
+
+    if (!limiters[channel.owner_id].popper) {
+      limiters[channel.owner_id].popper = setInterval(function() {
+          if (limiters[channel.owner_id].queue.length) {
+            limiters[channel.owner_id].queue.shift()();
+          } else {
+            clearInterval(limiters[channel.owner_id].popper);
+            delete limiters[channel.owner_id]
+          }
+
+        }, 1000 / rateOverride);
+    }
+
+    limiters[channel.owner_id].queue.push(fn);
   },
 
 

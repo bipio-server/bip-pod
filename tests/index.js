@@ -202,12 +202,14 @@ describe('attach pod (boilerplate)', function() {
     });
   });
 
-  it('can rate limit requests', function(next) {
+  it('can rate limit requests', function(done) {
     var expected = [],
       resolved = [],
       iter = 10,
-      rateLimit = 5,
+      rateLimit = 1,
       reqSec = 1000 / rateLimit; // 5/sec
+
+    this.timeout(15000);
 
     var then = (new Date()).getTime();
 
@@ -216,23 +218,26 @@ describe('attach pod (boilerplate)', function() {
 
       (function(i) {
         pod.limitRate(
-          function() {
-            resolved.push(i);
-            if (i === iter) {
-              now = (new Date()).getTime();
-
-
-              ((now - then) / 1000).should.be.above(iter / rateLimit);
-
-               _.difference(expected, resolved).should.be.empty
-              resolved.should.not.be.empty;
-              next();
-            }
+          {
+            'owner_id' : 'abc'
           },
-          reqSec)();
+          (function(resolved) {
+            return function() {
+              resolved.push(i);
+              if (i === iter) {
+                now = (new Date()).getTime();
+
+                ((now - then) / 1000).should.be.above(iter / rateLimit);
+
+                 _.difference(expected, resolved).should.be.empty
+                resolved.should.not.be.empty;
+                done();
+              }
+            }
+          })(resolved),
+          rateLimit);
       })(i);
     }
-
   });
 
 });
