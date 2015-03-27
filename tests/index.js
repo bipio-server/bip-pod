@@ -30,11 +30,11 @@ describe('attach pod (boilerplate)', function() {
     pod.init(podName, dao, cdn, logger, options);
   });
 
-  xit('can describe pod', function() {
+  it('can describe pod', function() {
     pod.getName().should.equal(podName);
   });
 
-  xit('can provide a (pre-disposed) description', function() {
+  it('can provide a (pre-disposed) description', function() {
     var descriptions = pod.dispositionDescribe('simple'),
       expectedDisposition = [
         "value",
@@ -48,7 +48,7 @@ describe('attach pod (boilerplate)', function() {
     }
   });
 
-  xit('can derive config and imports from a (pre-disposed) payload', function() {
+  it('can derive config and imports from a (pre-disposed) payload', function() {
     var payload = {
         'imports.value' :'pl_value',
         'config.str_in' : 'pl_str_in',
@@ -79,7 +79,7 @@ describe('attach pod (boilerplate)', function() {
     });
   });
 
-  xit('honors action required fields', function(done) {
+  it('honors action required fields', function(done) {
     var channel = {
         config : {
 
@@ -96,7 +96,7 @@ describe('attach pod (boilerplate)', function() {
     });
   });
 
-  xit('can invoke action', function(done) {
+  it('can invoke action', function(done) {
     var channel = {
         config : {
 
@@ -117,7 +117,7 @@ describe('attach pod (boilerplate)', function() {
   });
 
 
-  xit('can provide a (pre-disposed) description including auth', function() {
+  it('can provide a (pre-disposed) description including auth', function() {
     var oldSchema = pod.getSchema(),
       newSchema = JSON.parse(JSON.stringify(oldSchema));
 
@@ -149,7 +149,7 @@ describe('attach pod (boilerplate)', function() {
     }
   });
 
-  xit('can derive config and imports from a (pre-disposed) payload', function() {
+  it('can derive config and imports from a (pre-disposed) payload', function() {
     var oldSchema = pod.getSchema(),
       newSchema = JSON.parse(JSON.stringify(oldSchema));
 
@@ -206,10 +206,10 @@ describe('attach pod (boilerplate)', function() {
     var expected = [],
       resolved = [],
       iter = 10,
-      rateLimit = 1,
+      rateLimit = 5,
       reqSec = 1000 / rateLimit; // 5/sec
 
-    this.timeout(15000);
+    this.timeout(1000 * ( iter / rateLimit + 1) );
 
     var then = (new Date()).getTime();
 
