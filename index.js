@@ -1185,7 +1185,7 @@ Pod.prototype = {
             next( err, accountInfo );
           });
         }
-        self._dao.updateColumn('channel', { owner_id : accountId, action : { $regex : this.getName() + '\.*' } }, { _available : true });
+        self._dao.updateColumn('channel', { owner_id : accountId, action : { $regex : self.getName() + '\.*' } }, { _available : true });
       }
     });
   },
