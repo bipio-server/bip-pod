@@ -1156,8 +1156,7 @@ Pod.prototype = {
       type : 'oauth',
       oauth_provider : this.getName(),
       oauth_refresh : refreshToken || '',
-      oauth_profile : profile._json ? profile._json : profile,
-      _available: true
+      oauth_profile : profile._json ? profile._json : profile
     };
 
     if (params.expires_in) {
@@ -1186,6 +1185,7 @@ Pod.prototype = {
             next( err, accountInfo );
           });
         }
+        self._dao.updateColumn('channel', { owner_id : accountId, action : { $regex : this.getName() + '\.*' } }, { _available : true });
       }
     });
   },
