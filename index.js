@@ -1156,7 +1156,8 @@ Pod.prototype = {
       type : 'oauth',
       oauth_provider : this.getName(),
       oauth_refresh : refreshToken || '',
-      oauth_profile : profile._json ? profile._json : profile
+      oauth_profile : profile._json ? profile._json : profile,
+      _available: true
     };
 
     if (params.expires_in) {
