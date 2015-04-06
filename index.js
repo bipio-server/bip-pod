@@ -1957,14 +1957,14 @@ Pod.prototype = {
         filter = {
           owner_id : channel.owner_id,
           channel_id : channel.id,
-          bip_id : sysImports.bip.id,
+          bip_id : sysImports.bip && sysImports.bip.id,
           value : objVal
         },
         props = {
           last_update : helper.nowUTCMS(),
           owner_id : channel.owner_id,
           channel_id : channel.id,
-          bip_id : sysImports.bip.id,
+          bip_id : sysImports.bip && sysImports.bip.id,
           value : objVal
         };
 
