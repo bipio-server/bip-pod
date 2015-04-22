@@ -1619,7 +1619,7 @@ Pod.prototype = {
      * @param contentParts
      * @paran next {Function} callback
      */
-  invoke: function(action, channel, imports, sysImports, contentParts, next) {
+  invoke: function(action, channel, imports, sysImports, contentParts, next, invokeOverride) {
     var self = this;
 
     if (this.actions[action].invoke) {
@@ -1699,7 +1699,7 @@ Pod.prototype = {
           var invokeMethod = 'invoke' === this.getTriggerType() ? 'invoke' : 'trigger';
 
           // @deprecate -- when all trigger actions support 'trigger' method
-          if (!this.actions[action][invokeMethod]) {
+          if (invokeOverride || !this.actions[action][invokeMethod]) {
             invokeMethod = 'invoke';
           }
 
@@ -1804,10 +1804,10 @@ Pod.prototype = {
 
      _.each(
       _.uniq(
-        _.union(authDisposition, imports.required, config.required).concat(
+        _.union(authDisposition, imports.required || [], config.required || []).concat(
           authDisposition,
-          imports.disposition,
-          config.disposition
+          imports.disposition || [],
+          config.disposition || []
         )
       ),
       function(attr) {
