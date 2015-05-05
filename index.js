@@ -592,7 +592,7 @@ Pod.prototype = {
   },
 
   getIcon : function() {
-    return this.options.cdnPublicBaseURL + '/pods/' + this.getName() + '.png';
+    return this.options.cdnPublicBaseURL + '/img/pods/' + this.getName() + '.png';
   },
 
   getRateLimit : function() {
