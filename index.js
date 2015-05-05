@@ -1762,14 +1762,14 @@ Pod.prototype = {
   /**
    * Creates a json-schema-ish 'public' view of this Pod
    */
-  describe : function() {
+  describe : function(accountInfo) {
     var self = this,
       rpcs = this.getRPCs(),
       schema = {
         'name' : this.getName(),
         'title' : this.getTitle(),
         'description' : this.getDescription(),
-        'icon' : this.getIcon(),
+        'icon' : this.getIcon(accountInfo),
         'auth' : this.getAuth(),
         'rpcs' : this.getRPCs(),
         'url' : this.getBPMAttr('url'),
