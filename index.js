@@ -92,11 +92,39 @@ var helper = {
   isObject: function(src) {
     return (helper.getType(src) == '[object Object]');
   },
-
+  
+  isBoolean: function(src){
+	  return (['true', 'false', '1', '0','yes','no','y','n'].indexOf(src.toLowerCase()) >= 0);  
+  },
+  
+  isNumeric : function(src){
+	  return validator.validators.isNumeric(src);  
+  },
+  
   isArray: function(src) {
     return (helper.getType(src) == '[object Array]');
   },
-
+  
+  isJson: function(src) { 
+	  try { 
+		  JSON.parse(src); 
+	  } catch (e) { 
+		  return false; 
+	  } 
+	  
+	  return true; 
+  },
+  
+  string_isArray : function(src){
+	  try { 
+		  eval(src); 
+	  } catch (e) { 
+		  return false; 
+	  } 
+	  
+	  return true; 
+  },
+  
   isString : function(src) {
     return (helper.getType(src) == '[object String]');
   },
@@ -1696,22 +1724,48 @@ Pod.prototype = {
         }
 
         if (haveRequiredFields) {
-
-          var invokeMethod = 'invoke' === this.getTriggerType() ? 'invoke' : 'trigger';
-
-          // @deprecate -- when all trigger actions support 'trigger' method
-          if (invokeOverride || !this.actions[action][invokeMethod]) {
-            invokeMethod = 'invoke';
-          }
-
-          //
-          this.actions[action][invokeMethod](imports, channel, sysImports, contentParts, function(err, exports) {
-            if (err) {
-              self.log(err, channel, 'error');
-            }
-            next.apply(self, arguments);
-          });
-
+        	
+        	_.each(imports, function(value, key) {
+        		switch(importSchema[key].type.toLowerCase()) {
+	        	    case 'number':
+	        	    	if(!helper.isNumeric(value)){
+	        	    		errStr = 'String cannot be converted to number';
+	        	    	}
+	        	    	break;
+	        	    case 'object':
+	        	    	if(!helper.isJson(value)){
+	        	    		errStr = 'String cannot be converted to object';
+	        	    	}
+	        	    	break;	
+	          	    case 'boolean':
+	          	    	if(!helper.isBoolean(value)){
+	        	    		errStr = 'String cannot be converted to boolean';
+	        	    	}
+	        	    	break;
+	          	    case 'array':
+	        	    	if(!helper.string_isArray(value)){
+	        	    		errStr = 'String cannot be converted to array';
+	        	    	}
+	        	    	break;	
+	        	}
+              });
+        	
+           if(!errStr){
+	          var invokeMethod = 'invoke' === this.getTriggerType() ? 'invoke' : 'trigger';
+	
+	          // @deprecate -- when all trigger actions support 'trigger' method
+	          if (invokeOverride || !this.actions[action][invokeMethod]) {
+	            invokeMethod = 'invoke';
+	          }
+	
+	          //
+	          this.actions[action][invokeMethod](imports, channel, sysImports, contentParts, function(err, exports) {
+	            if (err) {
+	              self.log(err, channel, 'error');
+	            }
+	            next.apply(self, arguments);
+	          });
+           }
         } else {
           errStr = 'Missing Required Field(s):' + missingFields.join();
         }
