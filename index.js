@@ -94,7 +94,7 @@ var helper = {
   },
   
   isBoolean: function(src){
-	  return (src == true || src == false || 1 === src || 0 === src || (helper.isString(src) && ['true', 'false', '1', '0','yes','no','y','n'].indexOf(src.toLowerCase()) >= 0));  
+	  return (src === true || src === false || 1 === src || 0 === src || (helper.isString(src) && ['true', 'false', '1', '0','yes','no','y','n'].indexOf(src.toLowerCase()) >= 0));  
   },
   
   isNumeric : function(src){
