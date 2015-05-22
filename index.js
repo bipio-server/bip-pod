@@ -1812,6 +1812,80 @@ Pod.prototype = {
     }
   },
 
+  arrayUnique : function (array) {
+	    var a = array.concat();
+	    for(var i=0; i<a.length; ++i) {
+	        for(var j=i+1; j<a.length; ++j) {
+	            if(a[i] === a[j])
+	                a.splice(j--, 1);
+	        }
+	    }
+
+	    return a;
+	},
+  
+	arraymove: function (arr, fromIndex, toIndex) {
+	    var element = arr[fromIndex];
+	    arr.splice(fromIndex, 1);
+	    arr.splice(toIndex, 0, element);
+	},
+	
+	moveItemToTop: function (obj,item) { //move item to index 0 of an object
+		var res=new Object() ;
+		res[item]=obj[item];
+		for (var ac in obj) {
+				if(ac!=item){
+					res[ac]=obj[ac]
+				}
+		  }
+		return res;
+	},
+   
+  formatActions : function (){
+	  var actionsJSON=this.getBPMAttr('actions');
+	  for (var ac in this.actions) {
+		  try{
+			  var actionConfigProperties = actionsJSON[ac].config.properties;
+			  var actionConfigDisposition = actionsJSON[ac].config.disposition;
+			  var actionImports= actionsJSON[ac].imports.properties;
+			  var actionImportsDisposition= actionsJSON[ac].imports.disposition;
+
+			  for (var cp in actionConfigProperties) { //concatenate the imports object and the config object content
+				  
+				  if(actionConfigProperties[cp].oneOf){//check if the config has reference 
+					  for (i = 0; i < actionConfigProperties[cp].oneOf.length; i++) { 
+						  if(actionConfigProperties[cp].oneOf[i].$ref){
+							  actionConfigProperties[cp].oneOf[i].$ref=actionConfigProperties[cp].oneOf[i].$ref.replace("config","imports"); //replace the config reference with the imports 
+						  }
+					  }
+				  }
+				 actionImports[cp]=actionConfigProperties[cp];
+			  }
+			  
+			  actionImportsDisposition=actionImportsDisposition.concat(actionConfigDisposition);//concatenate config disposition with imports disposition
+			  actionImportsDisposition=this.arrayUnique(actionImportsDisposition); //remove duplications
+
+			  if(actionsJSON[ac].config.required){ //check if the config has required field if no all will be good because the items are appended at the end of the dipsosition and the imports
+				  var actionConfigRequired = actionsJSON[ac].config.required;
+				  for (i = 0; i < actionConfigRequired.length; i++) { 
+					  this.arraymove(actionImportsDisposition,actionImportsDisposition.indexOf(actionConfigRequired[i]),0); //move the required field to the top of the disposition
+					  if(actionsJSON[ac].imports.required){
+						  actionsJSON[ac].imports.required.unshift(actionConfigRequired[i]); //add the item in the beginning of the required array
+					  }else{
+						  actionsJSON[ac].imports.required = new Array();
+						  actionsJSON[ac].imports.required[0]=actionConfigRequired[i];//create required array in imports because it didn't exist
+					  }
+					  actionImports=this.moveItemToTop(actionImports,actionConfigRequired[i]); //move the required item to the first index of imports
+				  }
+			  }
+			  actionsJSON[ac].imports.properties=actionImports;
+			  actionsJSON[ac].imports.disposition=actionImportsDisposition;
+		  }catch( err ){
+			  console.log(err);
+		  }		  
+	  }
+	  return actionsJSON;
+  },
   /**
    * Creates a json-schema-ish 'public' view of this Pod
    */
@@ -1826,7 +1900,7 @@ Pod.prototype = {
         'auth' : this.getAuth(),
         'rpcs' : this.getRPCs(),
         'url' : this.getBPMAttr('url'),
-        'actions' : this.getBPMAttr('actions'),
+        'actions' : this.formatActions(),
         'tags' : this.getTags()
       },
       authType = this.getAuth().strategy;
