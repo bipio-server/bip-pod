@@ -92,38 +92,38 @@ var helper = {
   isObject: function(src) {
     return (helper.getType(src) == '[object Object]');
   },
-  
+
   isBoolean: function(src){
-	  return (src === true || src === false || 1 === src || 0 === src || (helper.isString(src) && ['true', 'false', '1', '0','yes','no','y','n'].indexOf(src.toLowerCase()) >= 0));  
+	  return (src === true || src === false || 1 === src || 0 === src || (helper.isString(src) && ['true', 'false', '1', '0','yes','no','y','n'].indexOf(src.toLowerCase()) >= 0));
   },
-  
+
   isNumeric : function(src){
-	  return validator.validators.isNumeric(src);  
+	  return validator.validators.isNumeric(src);
   },
-  
+
   isArray: function(src) {
     return (helper.getType(src) == '[object Array]');
   },
-  
-  isJson: function(src) { 
-	  try { 
-		  JSON.parse(src); 
-	  } catch (e) { 
-		  return false; 
-	  } 
-	  
-	  return true; 
+
+  isJson: function(src) {
+	  try {
+		  JSON.parse(src);
+	  } catch (e) {
+		  return false;
+	  }
+
+	  return true;
   },
-  
+
   string_isArray : function(src){
-	  try { 
+	  try {
 		  return helper.isArray(JSON.parse(src));
-	  } catch (e) { 
-		  return false; 
-	  } 
-	  
+	  } catch (e) {
+		  return false;
+	  }
+
   },
-  
+
   isString : function(src) {
     return (helper.getType(src) == '[object String]');
   },
@@ -1723,7 +1723,7 @@ Pod.prototype = {
         }
 
         if (haveRequiredFields) {
-        	
+
         	_.each(imports, function(value, key) {
         		switch(importSchema[key].type.toLowerCase()) {
 	        	    case 'number':
@@ -1735,7 +1735,7 @@ Pod.prototype = {
 	        	    	if(!helper.isJson(value)){
 	        	    		errStr = 'String cannot be converted to object';
 	        	    	}
-	        	    	break;	
+	        	    	break;
 	          	    case 'boolean':
 	          	    	if(!helper.isBoolean(value)){
 	        	    		errStr = 'String cannot be converted to boolean';
@@ -1745,18 +1745,18 @@ Pod.prototype = {
 	        	    	if(!helper.string_isArray(value)){
 	        	    		errStr = 'String cannot be converted to array';
 	        	    	}
-	        	    	break;	
+	        	    	break;
 	        	}
               });
-        	
+
            if(!errStr){
 	          var invokeMethod = 'invoke' === this.getTriggerType() ? 'invoke' : 'trigger';
-	
+
 	          // @deprecate -- when all trigger actions support 'trigger' method
 	          if (invokeOverride || !this.actions[action][invokeMethod]) {
 	            invokeMethod = 'invoke';
 	          }
-	
+
 	          //
 	          this.actions[action][invokeMethod](imports, channel, sysImports, contentParts, function(err, exports) {
 	            if (err) {
@@ -1823,13 +1823,13 @@ Pod.prototype = {
 
 	    return a;
 	},
-  
+
 	arraymove: function (arr, fromIndex, toIndex) {
 	    var element = arr[fromIndex];
 	    arr.splice(fromIndex, 1);
 	    arr.splice(toIndex, 0, element);
 	},
-	
+
 	moveItemToTop: function (obj,item) { //move item to index 0 of an object
 		var res=new Object() ;
 		res[item]=obj[item];
@@ -1840,7 +1840,7 @@ Pod.prototype = {
 		  }
 		return res;
 	},
-   
+
   formatActions : function (){
 	  var actionsJSON=this.getBPMAttr('actions');
 	  for (var ac in this.actions) {
@@ -1848,26 +1848,26 @@ Pod.prototype = {
 			  var actionConfigProperties = actionsJSON[ac].config.properties;
 			  var actionConfigDisposition = actionsJSON[ac].config.disposition;
 			  var actionImports= actionsJSON[ac].imports.properties;
-			  var actionImportsDisposition= actionsJSON[ac].imports.disposition;
+			  var actionImportsDisposition= actionsJSON[ac].imports.disposition || [];
 
 			  for (var cp in actionConfigProperties) { //concatenate the imports object and the config object content
-				  
-				  if(actionConfigProperties[cp].oneOf){//check if the config has reference 
-					  for (i = 0; i < actionConfigProperties[cp].oneOf.length; i++) { 
+
+				  if(actionConfigProperties[cp].oneOf){//check if the config has reference
+					  for (i = 0; i < actionConfigProperties[cp].oneOf.length; i++) {
 						  if(actionConfigProperties[cp].oneOf[i].$ref){
-							  actionConfigProperties[cp].oneOf[i].$ref=actionConfigProperties[cp].oneOf[i].$ref.replace("config","imports"); //replace the config reference with the imports 
+							  actionConfigProperties[cp].oneOf[i].$ref=actionConfigProperties[cp].oneOf[i].$ref.replace("config","imports"); //replace the config reference with the imports
 						  }
 					  }
 				  }
 				 actionImports[cp]=actionConfigProperties[cp];
 			  }
-			  
-			  actionImportsDisposition=actionImportsDisposition.concat(actionConfigDisposition);//concatenate config disposition with imports disposition
-			  actionImportsDisposition=this.arrayUnique(actionImportsDisposition); //remove duplications
+
+			  actionImportsDisposition = actionImportsDisposition.concat(actionConfigDisposition);//concatenate config disposition with imports disposition
+			  actionImportsDisposition = this.arrayUnique(actionImportsDisposition); //remove duplications
 
 			  if(actionsJSON[ac].config.required){ //check if the config has required field if no all will be good because the items are appended at the end of the dipsosition and the imports
 				  var actionConfigRequired = actionsJSON[ac].config.required;
-				  for (i = 0; i < actionConfigRequired.length; i++) { 
+				  for (i = 0; i < actionConfigRequired.length; i++) {
 					  this.arraymove(actionImportsDisposition,actionImportsDisposition.indexOf(actionConfigRequired[i]),0); //move the required field to the top of the disposition
 					  if(actionsJSON[ac].imports.required){
 						  actionsJSON[ac].imports.required.unshift(actionConfigRequired[i]); //add the item in the beginning of the required array
@@ -1882,7 +1882,7 @@ Pod.prototype = {
 			  actionsJSON[ac].imports.disposition=actionImportsDisposition;
 		  }catch( err ){
 			  console.log(err);
-		  }		  
+		  }
 	  }
 	  return actionsJSON;
   },
@@ -2110,15 +2110,14 @@ Pod.prototype = {
   },
 
   // drops a duplicate filter by bipId/channel pair
-  dupRemove : function(bipId, channel, next) {
+  dupRemove : function(bipId, next) {
     var self = this,
       modelName = this.getDataSourceName('dup');
 
     self._dao.removeFilter(
       modelName,
       {
-        bip_id : bipId,
-        channel_id : channel.id
+        bip_id : bipId
       },
       next
     );
@@ -2176,16 +2175,15 @@ Pod.prototype = {
     }
   },
 
-  // drops a duplicate filter by bipId/channel pair
-  deltaRemove : function(bipId, channel, next) {
+  // drops a duplicate filter by bipId
+  deltaRemove : function(bipId, next) {
     var self = this,
       modelName = this.getDataSourceName('delta');
 
     self._dao.removeFilter(
       modelName,
       {
-        bip_id : bipId,
-        channel_id : channel.id
+        bip_id : bipId
       },
       next
     );
