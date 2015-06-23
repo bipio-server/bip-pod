@@ -100,21 +100,55 @@ var helper = {
   isNumeric : function(src){
 	  return validator.validators.isNumeric(src);
   },
+  
+  isFloat : function(src){
+	  return validator.validators.isFloat(src);
+  },
+  
+  stringToFloat : function(str){
+	  if(helper.isFloat(str)){
+		  return parseFloat(str);
+	  }else{
+		  return false;
+	  }
+	
+  },
+  
+  stringToJson: function(str) {
+	  try {
+		  var parsed = JSON.parse(str);
+			 if(helper.isJson(parsed)){
+				 return parsed;
+			 }else{
+				 return null;
+			 }
+	  } catch (e) {
+		  return null;
+	  }
+  },
+  
+  stringToArray: function(str){
+	  try {
+		  var parsed = JSON.parse(str);
+		 if(helper.isArray(parsed)){
+			 return parsed;
+		 }else{
+			 return null;
+		 }
+	  } catch (e) {
+		  return null;
+	  }
+
+  },
 
   isArray: function(src) {
     return (helper.getType(src) == '[object Array]');
   },
 
   isJson: function(src) {
-	  try {
-		  JSON.parse(src);
-	  } catch (e) {
-		  return false;
-	  }
-
-	  return true;
+	  return (helper.getType(src) == '[object Object]');
   },
-
+  
   string_isArray : function(src){
 	  try {
 		  return helper.isArray(JSON.parse(src));
@@ -136,14 +170,24 @@ var helper = {
     return Object.prototype.toString.call( src );
   },
 
-  isTruthy : function(input) {
-    return (true === input || /1|yes|y|true/g.test(input));
+  isTruthy : function(src) {
+	  return (src === true ||  1 === src || (helper.isString(src) && ['true', '1','yes','y'].indexOf(src.toLowerCase()) >= 0))
   },
 
-  isFalsy : function(input) {
-    return (false === input || /0|no|n|false/g.test(input));
+  isFalsy : function(src) {
+	  return (src === false || 0 === src || (helper.isString(src) && ['false', '0','no','n'].indexOf(src.toLowerCase()) >= 0))
   },
-
+  
+  stringToBoolean:function(src){
+	  if(helper.isTruthy(src))
+		  return true;
+	  
+	  if(helper.isFalsy(src))
+		  return false;
+	  
+	  return null;
+  },
+  
   sanitize : function(str) {
     return validator.sanitize(str);
   },
@@ -1648,8 +1692,10 @@ Pod.prototype = {
      * @paran next {Function} callback
      */
   invoke: function(action, channel, imports, sysImports, contentParts, next, invokeOverride) {
-    var self = this;
-
+    var self = this,
+    errStr,
+    parsingError = false;
+    
     if (this.actions[action].invoke) {
 
       if (!contentParts) {
@@ -1663,9 +1709,7 @@ Pod.prototype = {
         // apply channel config defaults into imports, if required
         // fields don't already exist
         var actionSchema = this.getAction(action),
-          haveRequiredFields = true,
-          missingFields = [],
-          errStr;
+          missingFields = (actionSchema.imports && actionSchema.imports.required && actionSchema.imports.required.length) ? actionSchema.imports.required : [];
 
         // apply config defaults
         var configDefaults = this.getActionConfigDefaults(action),
@@ -1698,58 +1742,71 @@ Pod.prototype = {
           }
         });
 
-        // trim empty imports
         for (var k in imports) {
-          // convert to boolean if not already
-          if (importSchema[k] && 'boolean' === importSchema[k].type) {
-            imports[k] = helper.isTruthy(imports[k]) ? true : false;
-          }
-
+          // trim empty import
           if (imports.hasOwnProperty(k) && '' === imports[k]) {
             delete imports[k];
+            continue; 
           }
-        }
-
-        if (actionSchema.imports
-          && actionSchema.imports.required
-          && actionSchema.imports.required.length) {
-
-          for (var i = 0; i < actionSchema.imports.required.length; i++) {
-            if (!imports[actionSchema.imports.required[i]] && false !== imports[actionSchema.imports.required[i]]) {
-              haveRequiredFields = false;
-              missingFields.push(actionSchema.imports.required[i]);
-            }
+          
+          if (missingFields.length && missingFields.indexOf(k) > -1  ){
+        	   missingFields.splice(missingFields.indexOf(k) ,1);
           }
-        }
 
-        if (haveRequiredFields) {
-
-        	_.each(imports, function(value, key) {
-        		switch(importSchema[key].type.toLowerCase()) {
+		  if(importSchema[k] && importSchema[k].type){
+			  	p_errStr = null;
+			  	value = imports[k];
+	        	switch(importSchema[k].type.toLowerCase()) {
 	        	    case 'number':
-	        	    	if(!helper.isNumeric(value)){
-	        	    		errStr = 'String cannot be converted to number';
+	        	    	pValue = helper.stringToFloat(value);
+	        	    	if(!pValue){
+	        	    		p_errStr = k + ': String cannot be converted to number';
+	        	    	}else{
+	        	    		imports[k] = pValue;
 	        	    	}
+
 	        	    	break;
 	        	    case 'object':
-	        	    	if(!helper.isJson(value)){
-	        	    		errStr = 'String cannot be converted to object';
+	        	    	pValue = helper.stringToJson(value);
+	        	    	if(!pValue){
+	        	    		p_errStr = k + ': String cannot be converted to object';
+	        	    	}else{
+	        	    		imports[k] = pValue;
 	        	    	}
 	        	    	break;
 	          	    case 'boolean':
-	          	    	if(!helper.isBoolean(value)){
-	        	    		errStr = 'String cannot be converted to boolean';
+	          	    	var pValue = helper.stringToBoolean(value);
+	          	    	if(pValue == null){
+	          	    		p_errStr = k + ': String cannot be converted to boolean';
+	        	    	}else{
+	        	    		imports[k] = pValue;
 	        	    	}
 	        	    	break;
 	          	    case 'array':
-	        	    	if(!helper.string_isArray(value)){
-	        	    		errStr = 'String cannot be converted to array';
+	          	        pValue = helper.stringToArray(value);
+	        	    	if(!pValue){
+	        	    		p_errStr = k + ': String cannot be converted to array';
+	        	    	}else{
+	        	    		imports[k] = pValue;
 	        	    	}
 	        	    	break;
 	        	}
-              });
+	        	
+	        	if(p_errStr){
+	        		parsingError = true;
+	        		self.log(p_errStr, channel, 'error');
+	        		next.call(self, p_errStr);
+	        	}
+			}
+        }
+        
+        if(missingFields.length){
+        	errStr = 'Missing Required Field(s):' + missingFields.join();
+        	self.log(errStr, channel, 'error');
+        	next.call(self, errStr)
+        }
 
-           if(!errStr){
+        if (!missingFields.length && !parsingError) {
 	          var invokeMethod = 'invoke' === this.getTriggerType() ? 'invoke' : 'trigger';
 
 	          // @deprecate -- when all trigger actions support 'trigger' method
@@ -1764,19 +1821,14 @@ Pod.prototype = {
 	            }
 	            next.apply(self, arguments);
 	          });
-           }
-        } else {
-          errStr = 'Missing Required Field(s):' + missingFields.join();
         }
 
        } catch (e) {
          errStr = 'EXCEPT ' + e.toString();
+         self.log(errStr, channel, 'error');
+   	  	 next.call(self, errStr);
        }
-
-      if (errStr) {
-       self.log(errStr, channel, 'error');
-       next.call(self, errStr);
-      }
+       
     }
   },
 
