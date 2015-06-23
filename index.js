@@ -1841,26 +1841,41 @@ Pod.prototype = {
 		return res;
 	},
 
-  formatActions : function (){
+  formatActions : function () {
 	  var actionsJSON=this.getBPMAttr('actions');
 	  for (var ac in this.actions) {
 		  try{
+        actionsJSON[ac].name = ac;
 			  var actionConfigProperties = actionsJSON[ac].config.properties;
+        var actionConfigDefs = actionsJSON[ac].config.definitions;
 			  var actionConfigDisposition = actionsJSON[ac].config.disposition;
 			  var actionImports= actionsJSON[ac].imports.properties;
 			  var actionImportsDisposition= actionsJSON[ac].imports.disposition || [];
+        var propStruct;
 
 			  for (var cp in actionConfigProperties) { //concatenate the imports object and the config object content
-
 				  if(actionConfigProperties[cp].oneOf){//check if the config has reference
-					  for (i = 0; i < actionConfigProperties[cp].oneOf.length; i++) {
-						  if(actionConfigProperties[cp].oneOf[i].$ref){
-							  actionConfigProperties[cp].oneOf[i].$ref=actionConfigProperties[cp].oneOf[i].$ref.replace("config","imports"); //replace the config reference with the imports
+            propStruct = JSON.parse(JSON.stringify(actionConfigProperties[cp]));
+
+					  for (i = 0; i < propStruct.oneOf.length; i++) {
+						  if (propStruct.oneOf[i].$ref) {
+							  propStruct.oneOf[i].$ref =
+                  propStruct.oneOf[i].$ref.replace("config","imports"); //replace the config reference with the imports
 						  }
 					  }
 				  }
-				 actionImports[cp]=actionConfigProperties[cp];
+
+				  actionImports[cp] = propStruct;
 			  }
+
+        if (actionConfigDefs) {
+          if (!actionsJSON[ac].imports.definitions) {
+            actionsJSON[ac].imports.definitions = {};
+          }
+          _.each(actionConfigDefs, function(value, prop ) {
+            actionsJSON[ac].imports.definitions[prop] = value;
+          });
+        }
 
 			  actionImportsDisposition = actionImportsDisposition.concat(actionConfigDisposition);//concatenate config disposition with imports disposition
 			  actionImportsDisposition = this.arrayUnique(actionImportsDisposition); //remove duplications
@@ -1880,7 +1895,7 @@ Pod.prototype = {
 			  }
 			  actionsJSON[ac].imports.properties=actionImports;
 			  actionsJSON[ac].imports.disposition=actionImportsDisposition;
-		  }catch( err ){
+		  } catch( err ){
 			  console.log(err);
 		  }
 	  }
