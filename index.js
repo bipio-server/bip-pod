@@ -100,20 +100,20 @@ var helper = {
   isNumeric : function(src){
 	  return validator.validators.isNumeric(src);
   },
-  
+
   isFloat : function(src){
 	  return validator.validators.isFloat(src);
   },
-  
+
   stringToFloat : function(str){
 	  if(helper.isFloat(str)){
 		  return parseFloat(str);
 	  }else{
 		  return false;
 	  }
-	
+
   },
-  
+
   stringToJson: function(str) {
 	  try {
 		  var parsed = JSON.parse(str);
@@ -126,7 +126,7 @@ var helper = {
 		  return null;
 	  }
   },
-  
+
   stringToArray: function(str){
 	  try {
 		  var parsed = JSON.parse(str);
@@ -148,7 +148,7 @@ var helper = {
   isJson: function(src) {
 	  return (helper.getType(src) == '[object Object]');
   },
-  
+
   string_isArray : function(src){
 	  try {
 		  return helper.isArray(JSON.parse(src));
@@ -177,17 +177,17 @@ var helper = {
   isFalsy : function(src) {
 	  return (src === false || 0 === src || (helper.isString(src) && ['false', '0','no','n'].indexOf(src.toLowerCase()) >= 0))
   },
-  
+
   stringToBoolean:function(src){
 	  if(helper.isTruthy(src))
 		  return true;
-	  
+
 	  if(helper.isFalsy(src))
 		  return false;
-	  
+
 	  return null;
   },
-  
+
   sanitize : function(str) {
     return validator.sanitize(str);
   },
@@ -1695,7 +1695,7 @@ Pod.prototype = {
     var self = this,
     errStr,
     parsingError = false;
-    
+
     if (this.actions[action].invoke) {
 
       if (!contentParts) {
@@ -1746,9 +1746,9 @@ Pod.prototype = {
           // trim empty import
           if (imports.hasOwnProperty(k) && '' === imports[k]) {
             delete imports[k];
-            continue; 
+            continue;
           }
-          
+
           if (missingFields.length && missingFields.indexOf(k) > -1  ){
         	   missingFields.splice(missingFields.indexOf(k) ,1);
           }
@@ -1791,7 +1791,7 @@ Pod.prototype = {
 	        	    	}
 	        	    	break;
 	        	}
-	        	
+
 	        	if(p_errStr){
 	        		parsingError = true;
 	        		self.log(p_errStr, channel, 'error');
@@ -1799,7 +1799,7 @@ Pod.prototype = {
 	        	}
 			}
         }
-        
+
         if(missingFields.length){
         	errStr = 'Missing Required Field(s):' + missingFields.join();
         	self.log(errStr, channel, 'error');
@@ -1828,7 +1828,7 @@ Pod.prototype = {
          self.log(errStr, channel, 'error');
    	  	 next.call(self, errStr);
        }
-       
+
     }
   },
 
@@ -1901,13 +1901,16 @@ Pod.prototype = {
 			  var actionConfigProperties = actionsJSON[ac].config.properties;
         var actionConfigDefs = actionsJSON[ac].config.definitions;
 			  var actionConfigDisposition = actionsJSON[ac].config.disposition;
+
 			  var actionImports= actionsJSON[ac].imports.properties;
 			  var actionImportsDisposition= actionsJSON[ac].imports.disposition || [];
+
         var propStruct;
 
 			  for (var cp in actionConfigProperties) { //concatenate the imports object and the config object content
+          propStruct = JSON.parse(JSON.stringify(actionConfigProperties[cp]));
+
 				  if(actionConfigProperties[cp].oneOf){//check if the config has reference
-            propStruct = JSON.parse(JSON.stringify(actionConfigProperties[cp]));
 
 					  for (i = 0; i < propStruct.oneOf.length; i++) {
 						  if (propStruct.oneOf[i].$ref) {
@@ -1942,11 +1945,15 @@ Pod.prototype = {
 						  actionsJSON[ac].imports.required = new Array();
 						  actionsJSON[ac].imports.required[0]=actionConfigRequired[i];//create required array in imports because it didn't exist
 					  }
-					  actionImports=this.moveItemToTop(actionImports,actionConfigRequired[i]); //move the required item to the first index of imports
+//					  actionImports = this.moveItemToTop(actionImports,actionConfigRequired[i]); //move the required item to the first index of imports
 				  }
 			  }
-			  actionsJSON[ac].imports.properties=actionImports;
-			  actionsJSON[ac].imports.disposition=actionImportsDisposition;
+
+			  actionsJSON[ac].imports.properties = actionImports;
+
+			  actionsJSON[ac].imports.disposition = actionImportsDisposition;
+
+
 		  } catch( err ){
 			  console.log(err);
 		  }
