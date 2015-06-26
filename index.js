@@ -1698,6 +1698,10 @@ Pod.prototype = {
 
     if (this.actions[action].invoke) {
 
+      if (!channel.config) {
+        channel.config = {};
+      }
+
       if (!contentParts) {
         contentParts = {
           _files : []
