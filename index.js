@@ -1904,7 +1904,7 @@ Pod.prototype = {
         actionsJSON[ac].name = ac;
 			  var actionConfigProperties = actionsJSON[ac].config.properties;
         var actionConfigDefs = actionsJSON[ac].config.definitions;
-			  var actionConfigDisposition = actionsJSON[ac].config.disposition;
+			  var actionConfigDisposition = actionsJSON[ac].config.disposition || [];
 
 			  var actionImports= actionsJSON[ac].imports.properties;
 			  var actionImportsDisposition= actionsJSON[ac].imports.disposition || [];
