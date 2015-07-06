@@ -1410,9 +1410,18 @@ Pod.prototype = {
 
   // -------------------------------------------------- CDN HELPERS
 
-  _httpStreamToFile : function(url, outFile, cb, persist) {
-    var self = this;
-    self.file.save(outFile, request.get(url), persist, cb);
+  _httpStreamToFile : function(url, outFile, cb, persist, headers) {
+    this.file.save(
+      outFile,
+      request.get(
+        {
+          url : url,
+          headers : headers
+        }
+      ),
+      persist,
+      cb
+    );
   },
 
   _createChannelDir : function(prefix, channel, action, next) {
