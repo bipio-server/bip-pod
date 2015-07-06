@@ -1951,15 +1951,23 @@ Pod.prototype = {
 			  if(actionsJSON[ac].config.required){ //check if the config has required field if no all will be good because the items are appended at the end of the dipsosition and the imports
 				  var actionConfigRequired = actionsJSON[ac].config.required;
 				  for (i = 0; i < actionConfigRequired.length; i++) {
-					  this.arraymove(actionImportsDisposition,actionImportsDisposition.indexOf(actionConfigRequired[i]),0); //move the required field to the top of the disposition
-					  if(actionsJSON[ac].imports.required){
+					  this.arraymove(
+              actionImportsDisposition,
+              actionImportsDisposition.indexOf(actionConfigRequired[i]),
+              0
+            ); //move the required field to the top of the disposition
+
+					  if( actionsJSON[ac].imports.required ) {
 						  actionsJSON[ac].imports.required.unshift(actionConfigRequired[i]); //add the item in the beginning of the required array
-					  }else{
+
+					  } else {
 						  actionsJSON[ac].imports.required = new Array();
-						  actionsJSON[ac].imports.required[0]=actionConfigRequired[i];//create required array in imports because it didn't exist
+						  actionsJSON[ac].imports.required[0] = actionConfigRequired[i];//create required array in imports because it didn't exist
+
 					  }
 //					  actionImports = this.moveItemToTop(actionImports,actionConfigRequired[i]); //move the required item to the first index of imports
 				  }
+          actionsJSON[ac].imports.required = _.uniq(actionsJSON[ac].imports.required);
 			  }
 
 			  actionsJSON[ac].imports.properties = actionImports;
