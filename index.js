@@ -1907,10 +1907,15 @@ Pod.prototype = {
 	},
 
   formatActions : function () {
-	  var actionsJSON=this.getBPMAttr('actions');
+	  var actionsJSON = this.getBPMAttr('actions'),
+      action,
+      self = this;
+
 	  for (var ac in this.actions) {
+      action = actionsJSON[ac];
 		  try{
         actionsJSON[ac].name = ac;
+
 			  var actionConfigProperties = actionsJSON[ac].config.properties;
         var actionConfigDefs = actionsJSON[ac].config.definitions;
 			  var actionConfigDisposition = actionsJSON[ac].config.disposition || [];
@@ -1974,11 +1979,32 @@ Pod.prototype = {
 
 			  actionsJSON[ac].imports.disposition = actionImportsDisposition;
 
+        // decorate RPC's with properties and url templates
+        if (action.rpcs) {
+          _.each(action.rpcs, function(struct, rpcName) {
+            if (!struct._href) {
+              struct._href = self.options.baseUrl + '/rpc/channel/:channelId/rpcName';
+              if (struct.required && struct.required.length) {
+                struct._href += '?';
+                var reqFields = '';
+                for (var i = 0; i < struct.required.length; i++) {
+                  if (reqFields) {
+                    reqFields += '&';
+                  }
+                  reqFields += struct.required[i] + '=:' + struct.required[i]
+                }
+                struct._href += reqFields;
+              }
+            }
+          });
+        }
 
 		  } catch( err ){
 			  console.log(err);
 		  }
 	  }
+
+
 	  return actionsJSON;
   },
   /**
