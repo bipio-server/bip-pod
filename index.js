@@ -1983,7 +1983,7 @@ Pod.prototype = {
         if (action.rpcs) {
           _.each(action.rpcs, function(struct, rpcName) {
             if (!struct._href) {
-              struct._href = self.options.baseUrl + '/rpc/channel/:channelId/rpcName';
+              struct._href = self.options.baseUrl + '/rpc/channel/:channelId/' + rpcName;
               if (struct.required && struct.required.length) {
                 struct._href += '?';
                 var reqFields = '';
