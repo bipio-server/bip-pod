@@ -1772,7 +1772,7 @@ Pod.prototype = {
 	        	switch(importSchema[k].type.toLowerCase()) {
 	        	    case 'number':
 	        	    	pValue = helper.stringToFloat(value);
-	        	    	if(!pValue){
+	        	    	if(pValue === false){
 	        	    		p_errStr = k + ': String cannot be converted to number';
 	        	    	}else{
 	        	    		imports[k] = pValue;
