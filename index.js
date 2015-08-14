@@ -1766,52 +1766,63 @@ Pod.prototype = {
         	   missingFields.splice(missingFields.indexOf(k) ,1);
           }
 
+      var mixed;
 		  if(importSchema[k] && importSchema[k].type){
 			  	p_errStr = null;
 			  	value = imports[k];
-	        	switch(importSchema[k].type.toLowerCase()) {
-	        	    case 'number':
-	        	    	pValue = helper.stringToFloat(value);
-	        	    	if(!pValue){
-	        	    		p_errStr = k + ': String cannot be converted to number';
-	        	    	}else{
-	        	    		imports[k] = pValue;
-	        	    	}
+          mixed = false;
 
-	        	    	break;
-	        	    case 'object':
-	        	    	pValue = helper.stringToJson(value);
-	        	    	if(!pValue){
-	        	    		p_errStr = k + ': String cannot be converted to object';
-	        	    	}else{
-	        	    		imports[k] = pValue;
-	        	    	}
-	        	    	break;
-	          	    case 'boolean':
-	          	    	var pValue = helper.stringToBoolean(value);
-	          	    	if(pValue == null){
-	          	    		p_errStr = k + ': String cannot be converted to boolean';
-	        	    	}else{
-	        	    		imports[k] = pValue;
-	        	    	}
-	        	    	break;
-	          	    case 'array':
-	          	        pValue = helper.stringToArray(value);
-	        	    	if(!pValue){
-	        	    		p_errStr = k + ': String cannot be converted to array';
-	        	    	}else{
-	        	    		imports[k] = pValue;
-	        	    	}
-	        	    	break;
-	        	}
+        	switch(importSchema[k].type.toLowerCase()) {
+      	    case 'number':
+      	    	pValue = helper.stringToFloat(value);
+      	    	if (!pValue) {
+      	    		p_errStr = k + ': String cannot be converted to number';
+      	    	} else {
+      	    		imports[k] = pValue;
+      	    	}
+      	    	break;
 
-	        	if(p_errStr){
-	        		parsingError = true;
-	        		self.log(p_errStr, channel, 'error');
-	        		next.call(self, p_errStr);
-	        	}
-			}
-        }
+            case 'mixed':
+              mixed = true;
+      	    case 'object':
+      	    	pValue = helper.stringToJson(value);
+              if (pValue) {
+                imports[k] = pValue;
+
+              } else if(!pValue && mixed){
+                imports[k] = value;
+
+      	    	} else {
+                p_errStr = k + ': String cannot be converted to object';
+      	    	}
+      	    	break;
+
+      	    case 'boolean':
+        	    	var pValue = helper.stringToBoolean(value);
+        	    	if(pValue == null){
+        	    		p_errStr = k + ': String cannot be converted to boolean';
+      	    	}else{
+      	    		imports[k] = pValue;
+      	    	}
+      	    	break;
+
+      	    case 'array':
+    	        pValue = helper.stringToArray(value);
+      	    	if(!pValue){
+      	    		p_errStr = k + ': String cannot be converted to array';
+      	    	} else {
+      	    		imports[k] = pValue;
+      	    	}
+      	    	break;
+        	}
+
+        	if(p_errStr){
+        		parsingError = true;
+        		self.log(p_errStr, channel, 'error');
+        		next.call(self, p_errStr);
+        	}
+			  }
+      }
 
         if(missingFields.length){
         	errStr = 'Missing Required Field(s):' + missingFields.join();
