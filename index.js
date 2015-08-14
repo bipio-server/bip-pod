@@ -1847,11 +1847,13 @@ Pod.prototype = {
 	          });
         }
 
-       } catch (e) {
-         errStr = 'EXCEPT ' + e.toString();
-         self.log(errStr, channel, 'error');
-   	  	 next.call(self, errStr);
-       }
+      }
+
+     } catch (e) {
+       errStr = 'EXCEPT ' + e.toString();
+       self.log(errStr, channel, 'error');
+ 	  	 next.call(self, errStr);
+     }
 
     }
   },
