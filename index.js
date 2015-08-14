@@ -1822,7 +1822,7 @@ Pod.prototype = {
         		next.call(self, p_errStr);
         	}
 			  }
-      }
+
 
         if(missingFields.length){
         	errStr = 'Missing Required Field(s):' + missingFields.join();
