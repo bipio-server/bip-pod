@@ -54,7 +54,27 @@
         "properties": {
           "str_out": {
             "type": "string",
-            "description": "Output String"
+            "description": "String Out"
+          },
+          "value_out": {
+            "type": "integer",
+            "description": "Initial Value"
+          },
+          "in_obj_out" : {
+            "type" : "object",
+            "description" : "Some Object"
+          },
+          "in_arr_out" : {
+            "type" : "array",
+            "description" : "Some Array"
+          },
+          "in_mixed_out" : {
+            "type" : "mixed",
+            "description" : "Something castable to JSON"
+          },
+          "in_bool_out" : {
+            "type" : "boolean",
+            "description" : "Some Boolean"
           }
         }
       },
@@ -71,6 +91,22 @@
           "value": {
             "type": "integer",
             "description": "Initial Value"
+          },
+          "in_obj" : {
+            "type" : "object",
+            "description" : "Some Object"
+          },
+          "in_arr" : {
+            "type" : "array",
+            "description" : "Some Array"
+          },
+          "in_mixed" : {
+            "type" : "mixed",
+            "description" : "Something castable to JSON"
+          },
+          "in_bool" : {
+            "type" : "boolean",
+            "description" : "Something Boolean"
           }
         },
         "required": [
@@ -80,7 +116,11 @@
         "disposition": [
           "value"        ,
           "str_in",
-          "opt_str_in"
+          "opt_str_in",
+          "in_obj",
+          "in_arr",
+          "in_mixed",
+          "in_bool"
         ]
       }
     }

@@ -52,13 +52,14 @@ Simple.prototype.invoke = function(imports, channel, sysImports, contentParts, n
   next(
     false,
     {
-      "str_out" :  imports.str_in
-        + ''
-        + (imports.opt_str_in ? imports.opt_str_in : '')
-        + ''
-        + (imports.value ? imports.value : '')
-      }
-    );
+      "str_out" :  imports.str_in,
+      "value_out" : imports.value,
+      "in_obj_out" : imports.in_obj,
+      "in_arr_out" : imports.in_arr,
+      "in_mixed_out" : imports.in_mixed,
+      "in_bool_out" : imports.in_bool
+    }
+  );
 }
 
 // -----------------------------------------------------------------------------

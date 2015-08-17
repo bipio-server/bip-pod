@@ -40,6 +40,10 @@ describe('attach pod (boilerplate)', function() {
         "value",
         "str_in",
         "opt_str_in",
+        "in_obj",
+        "in_arr",
+        "in_mixed",
+        "in_bool",
         "config_option"
       ];
 
@@ -47,14 +51,15 @@ describe('attach pod (boilerplate)', function() {
       descriptions[i].name.should.equal(expectedDisposition[i]);
     }
   });
-
+/*
   it('can derive config and imports from a (pre-disposed) payload', function() {
     var payload = {
         'imports.value' :'pl_value',
-        'config.str_in' : 'pl_str_in',
         'imports.str_in' : 'pl_str_in',
         'imports.opt_str_in' : 'pl_opt_str_in',
-        'config.opt_str_in' : 'pl_opt_str_in',
+        'imports.in_obj' : 'pl_in_obj',
+        'imports.in_arr' : 'pl_in_arr',
+        'imports.in_mixed' : 'pl_in_mixed',
         'config.config_option' : false
       },
       unpacked = pod.dispositionUnpack('simple', _.uniq(_.values(payload), true));
@@ -64,13 +69,10 @@ describe('attach pod (boilerplate)', function() {
     unpacked.imports.should.have.ownProperty('value');
     unpacked.imports.should.have.ownProperty('str_in');
     unpacked.imports.should.have.ownProperty('opt_str_in');
-    unpacked.imports.should.not.have.ownProperty('config_option');
-
-    unpacked.config.should.be.an.Object;
-    unpacked.config.should.have.ownProperty('str_in');
-    unpacked.config.should.have.ownProperty('opt_str_in');
-    unpacked.config.should.have.ownProperty('config_option');
-    unpacked.config.should.not.have.ownProperty('value');
+    unpacked.imports.should.have.ownProperty('in_obj');
+    unpacked.imports.should.have.ownProperty('in_arr');
+    unpacked.imports.should.have.ownProperty('in_mixed');
+    unpacked.imports.should.have.ownProperty('config_option');
 
     _.each(unpacked, function(values, key) {
       _.each(values, function(pVal, pKey) {
@@ -78,7 +80,7 @@ describe('attach pod (boilerplate)', function() {
       })
     });
   });
-
+*/
   it('honors action required fields', function(done) {
     var channel = {
         config : {
@@ -104,14 +106,15 @@ describe('attach pod (boilerplate)', function() {
       },
       imports = {
         str_in : 'echo',
-        value : '_req_value'
+        value : '123'
       },
       sysImports = {},
       contentParts = {};
 
     pod.invoke('simple', channel, imports, sysImports, contentParts, function(err, exports) {
       should(err).not.ok
-      exports.str_out.should.equal('echo_req_value');
+      exports.str_out.should.equal('echo');
+      exports.value_out.should.equal(123);
       done();
     });
   });
@@ -138,9 +141,13 @@ describe('attach pod (boilerplate)', function() {
       expectedDisposition = [
         "access_token",
         "secret",
-        "value",
         "str_in",
+        "value",
         "opt_str_in",
+        "in_obj",
+        "in_arr",
+        "in_mixed",
+        "in_bool",
         "config_option"
       ];
 
@@ -148,7 +155,7 @@ describe('attach pod (boilerplate)', function() {
       descriptions[i].name.should.equal(expectedDisposition[i]);
     }
   });
-
+/*
   it('can derive config and imports from a (pre-disposed) payload', function() {
     var oldSchema = pod.getSchema(),
       newSchema = JSON.parse(JSON.stringify(oldSchema));
@@ -169,11 +176,12 @@ describe('attach pod (boilerplate)', function() {
     var payload = {
         'auth.access_token' :'ACCESS_TOKEN',
         'auth.secret' :'SECRET',
-        'imports.value' :'pl_value',
-        'config.str_in' : 'pl_str_in',
         'imports.str_in' : 'pl_str_in',
+        'imports.value' :'pl_value',
         'imports.opt_str_in' : 'pl_opt_str_in',
-        'config.opt_str_in' : 'pl_opt_str_in',
+        'imports.in_obj' : 'pl_in_obj',
+        'imports.in_arr' : 'pl_in_arr',
+        'imports.in_mixed' : 'pl_in_mixed',
         'config.config_option' : false
       },
       unpacked = pod.dispositionUnpack('simple', _.uniq(_.values(payload), true));
@@ -183,13 +191,7 @@ describe('attach pod (boilerplate)', function() {
     unpacked.imports.should.have.ownProperty('value');
     unpacked.imports.should.have.ownProperty('str_in');
     unpacked.imports.should.have.ownProperty('opt_str_in');
-    unpacked.imports.should.not.have.ownProperty('config_option');
-
-    unpacked.config.should.be.an.Object;
-    unpacked.config.should.have.ownProperty('str_in');
-    unpacked.config.should.have.ownProperty('opt_str_in');
-    unpacked.config.should.have.ownProperty('config_option');
-    unpacked.config.should.not.have.ownProperty('value');
+    unpacked.imports.should.have.ownProperty('config_option');
 
     unpacked.auth.should.be.an.Object;
     unpacked.auth.should.have.ownProperty('access_token');
@@ -199,6 +201,81 @@ describe('attach pod (boilerplate)', function() {
       _.each(values, function(pVal, pKey) {
         payload[key + '.' + pKey].should.equal(pVal)
       })
+    });
+  });
+*/
+  it('can appropriately cast (strings)', function(done) {
+    var channel = {
+        config : {}
+      },
+      sysImports = {},
+      contentParts = {},
+    // string types
+      payload = {
+        str_in : 123,
+        value : "123",
+        in_obj : "{\"key\":\"value\"}",
+        in_arr : "[\"key1\", \"key2\"]",
+        in_mixed : "{\"key\":\"value\"}",
+        in_bool : "1"
+      };
+
+    pod.invoke('simple', channel, payload, sysImports, contentParts, function(err, exports) {
+      should(err).not.ok;
+      exports.str_out.should.equal(123);
+      exports.value_out.should.equal(123);
+
+      exports.in_obj_out.should.be.an.Object;
+      exports.in_obj_out.should.have.ownProperty('key');
+      exports.in_obj_out.key.should.equal('value');
+
+      exports.in_arr_out.should.be.an.Array;
+      exports.in_arr_out.should.have.lengthOf(2);
+
+      exports.in_mixed_out.should.be.an.Object;
+      exports.in_mixed_out.should.have.ownProperty('key');
+      exports.in_mixed_out.key.should.equal('value');
+
+      exports.in_bool_out.should.equal(true);
+
+      done();
+    });
+  });
+
+it('can appropriately cast (explicit types)', function(done) {
+    var channel = {
+        config : {}
+      },
+      sysImports = {},
+      contentParts = {},
+      payload = {
+        str_in : "123",
+        value : 123,
+        in_obj : {"key":"value"},
+        in_arr : ["key1", "key2"],
+        in_mixed : "{\"key\":\"value\"}",
+        in_bool : true
+      };
+
+    pod.invoke('simple', channel, payload, sysImports, contentParts, function(err, exports) {
+      should(err).not.ok;
+      exports.str_out.should.equal('123');
+      exports.value_out.should.equal(123);
+
+      exports.in_obj_out.should.be.an.Object;
+      exports.in_obj_out.should.have.ownProperty('key');
+      exports.in_obj_out.key.should.equal('value');
+
+      exports.in_arr_out.should.be.an.Array;
+      exports.in_arr_out.should.have.lengthOf(2);
+
+      exports.in_mixed_out.should.be.an.Object;
+      exports.in_mixed_out.should.have.ownProperty('key');
+      exports.in_mixed_out.key.should.equal('value');
+
+      exports.in_bool_out.should.equal(true);
+
+      done();
     });
   });
 

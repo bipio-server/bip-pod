@@ -93,6 +93,10 @@ var helper = {
     return (helper.getType(src) == '[object Object]');
   },
 
+  isNumber: function(src) {
+    return (helper.getType(src) == '[object Number]');
+  },
+
   isBoolean: function(src){
 	  return (src === true || src === false || 1 === src || 0 === src || (helper.isString(src) && ['true', 'false', '1', '0','yes','no','y','n'].indexOf(src.toLowerCase()) >= 0));
   },
@@ -105,12 +109,52 @@ var helper = {
 	  return validator.validators.isFloat(src);
   },
 
+  isInt : function(src) {
+    if (this.isNumber(src)) {
+      return src === +src && src === (src|0);
+    } else {
+      return validator.validators.isInt(src);
+    }
+  },
+
+  isArray: function(src) {
+    return (helper.getType(src) == '[object Array]');
+  },
+
+  isJson: function(src) {
+    return this.isArray(src) || this.isObject(src);
+  },
+
+  isString : function(src) {
+    return (helper.getType(src) == '[object String]');
+  },
+
+  isFunction : function(src) {
+    return (helper.getType(src) == '[object Function]');
+  },
+
+  isTruthy : function(src) {
+    return (src === true ||  1 === src || (helper.isString(src) && ['true', '1','yes','y'].indexOf(src.toLowerCase()) >= 0))
+  },
+
+  isFalsy : function(src) {
+    return (src === false || 0 === src || (helper.isString(src) && ['false', '0','no','n'].indexOf(src.toLowerCase()) >= 0))
+  },
+
   stringToFloat : function(str){
 	  if(helper.isFloat(str)){
 		  return parseFloat(str);
 	  }else{
 		  return false;
 	  }
+  },
+
+  stringToInt : function(str) {
+    if(helper.isInt(str)){
+      return parseInt(str);
+    }else{
+      return false;
+    }
 
   },
 
@@ -141,14 +185,6 @@ var helper = {
 
   },
 
-  isArray: function(src) {
-    return (helper.getType(src) == '[object Array]');
-  },
-
-  isJson: function(src) {
-	  return (helper.getType(src) == '[object Object]');
-  },
-
   string_isArray : function(src){
 	  try {
 		  return helper.isArray(JSON.parse(src));
@@ -158,34 +194,12 @@ var helper = {
 
   },
 
-  isString : function(src) {
-    return (helper.getType(src) == '[object String]');
-  },
-
-  isFunction : function(src) {
-    return (helper.getType(src) == '[object Function]');
-  },
-
   getType: function(src) {
     return Object.prototype.toString.call( src );
   },
 
-  isTruthy : function(src) {
-	  return (src === true ||  1 === src || (helper.isString(src) && ['true', '1','yes','y'].indexOf(src.toLowerCase()) >= 0))
-  },
-
-  isFalsy : function(src) {
-	  return (src === false || 0 === src || (helper.isString(src) && ['false', '0','no','n'].indexOf(src.toLowerCase()) >= 0))
-  },
-
-  stringToBoolean:function(src){
-	  if(helper.isTruthy(src))
-		  return true;
-
-	  if(helper.isFalsy(src))
-		  return false;
-
-	  return null;
+  stringToBoolean:function(src) {
+    return (helper.isTruthy(src) || helper.isFalsy(src))
   },
 
   sanitize : function(str) {
@@ -1703,7 +1717,8 @@ Pod.prototype = {
   invoke: function(action, channel, imports, sysImports, contentParts, next, invokeOverride) {
     var self = this,
     errStr,
-    parsingError = false;
+    parsingError = false,
+    mixedTypes = [ 'mixed', 'array', 'object' ]
 
     if (this.actions[action].invoke) {
 
@@ -1766,55 +1781,59 @@ Pod.prototype = {
         	   missingFields.splice(missingFields.indexOf(k) ,1);
           }
 
-      var mixed;
-		  if(importSchema[k] && importSchema[k].type){
+        var mixed;
+		    if(importSchema[k] && importSchema[k].type) {
 			  	p_errStr = null;
 			  	value = imports[k];
-          mixed = false;
+          type = importSchema[k].type.toLowerCase();
 
-        	switch(importSchema[k].type.toLowerCase()) {
-      	    case 'number':
-      	    	pValue = helper.stringToFloat(value);
-      	    	if (!pValue) {
-      	    		p_errStr = k + ': String cannot be converted to number';
-      	    	} else {
-      	    		imports[k] = pValue;
-      	    	}
-      	    	break;
+          //
+          if ('number' === type) {
+            pValue = helper.stringToFloat(value);
+            if (!pValue) {
+              p_errStr = k + ': String cannot be converted to Number';
+            } else {
+              imports[k] = pValue;
+            }
 
-            case 'mixed':
-              mixed = true;
-      	    case 'object':
-      	    	pValue = helper.stringToJson(value);
+          } else if ('integer' === type) {
+            pValue = helper.stringToInt(value);
+            if (!pValue) {
+              p_errStr = k + ': String cannot be converted to Integer';
+            } else {
+              imports[k] = pValue;
+            }
+
+          } else if ('boolean' === type) {
+            var pValue = helper.stringToBoolean(value);
+            if (pValue == null) {
+              p_errStr = k + ': String cannot be converted to Boolean';
+            } else {
+              imports[k] = pValue;
+            }
+
+          } else if (-1 !== mixedTypes.indexOf(type) ) {
+            if ('object' === type && helper.isObject(value)) {
+              imports[k] = value;
+
+            } else if ('array' === type && helper.isArray(value)) {
+              imports[k] = value;
+
+            } else {
+              pValue = helper.stringToJson(value);
+
               if (pValue) {
                 imports[k] = pValue;
 
-              } else if(!pValue && mixed){
+              } else if(!pValue){
                 imports[k] = value;
 
-      	    	} else {
-                p_errStr = k + ': String cannot be converted to object';
-      	    	}
-      	    	break;
-
-      	    case 'boolean':
-        	    	var pValue = helper.stringToBoolean(value);
-        	    	if(pValue == null){
-        	    		p_errStr = k + ': String cannot be converted to boolean';
-      	    	}else{
-      	    		imports[k] = pValue;
-      	    	}
-      	    	break;
-
-      	    case 'array':
-    	        pValue = helper.stringToArray(value);
-      	    	if(!pValue){
-      	    		p_errStr = k + ': String cannot be converted to array';
-      	    	} else {
-      	    		imports[k] = pValue;
-      	    	}
-      	    	break;
-        	}
+              } else {
+                p_errStr = k + ': String cannot be converted to '
+                  + (('mixed' === type || 'object' === type) ? 'Object' : 'Array') ;
+              }
+            }
+          }
 
         	if(p_errStr){
         		parsingError = true;
@@ -1822,31 +1841,29 @@ Pod.prototype = {
         		next.call(self, p_errStr);
         	}
 			  }
+      }
 
+      if(missingFields.length){
+        errStr = 'Missing Required Field(s):' + missingFields.join();
+        self.log(errStr, channel, 'error');
+        next.call(self, errStr)
+      }
 
-        if(missingFields.length){
-        	errStr = 'Missing Required Field(s):' + missingFields.join();
-        	self.log(errStr, channel, 'error');
-        	next.call(self, errStr)
+      if (!missingFields.length && !parsingError) {
+        var invokeMethod = 'invoke' === this.getTriggerType() ? 'invoke' : 'trigger';
+
+        // @deprecate -- when all trigger actions support 'trigger' method
+        if (invokeOverride || !this.actions[action][invokeMethod]) {
+          invokeMethod = 'invoke';
         }
 
-        if (!missingFields.length && !parsingError) {
-	          var invokeMethod = 'invoke' === this.getTriggerType() ? 'invoke' : 'trigger';
-
-	          // @deprecate -- when all trigger actions support 'trigger' method
-	          if (invokeOverride || !this.actions[action][invokeMethod]) {
-	            invokeMethod = 'invoke';
-	          }
-
-	          //
-	          this.actions[action][invokeMethod](imports, channel, sysImports, contentParts, function(err, exports) {
-	            if (err) {
-	              self.log(err, channel, 'error');
-	            }
-	            next.apply(self, arguments);
-	          });
-        }
-
+        //
+        this.actions[action][invokeMethod](imports, channel, sysImports, contentParts, function(err, exports) {
+          if (err) {
+            self.log(err, channel, 'error');
+          }
+          next.apply(self, arguments);
+        });
       }
 
      } catch (e) {
