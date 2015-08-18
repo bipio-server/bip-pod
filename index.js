@@ -935,6 +935,19 @@ Pod.prototype = {
     next(false);
   },
 
+  removeCredential : function(ownerId, providerName, next) {
+    var filter = {
+        owner_id : ownerId,
+        auth_provider : providerName
+      }
+
+      this._dao.removeFilter('account_auth', filter, function(err) {
+        if (next) {
+          next(err);
+        }
+      });
+  },
+
   issuerTokenRPC : function(method, req, res) {
     var ok = false,
       accountId = req.remoteUser.user.id;
@@ -1001,23 +1014,21 @@ Pod.prototype = {
             });
           }
         });
-
         ok = true;
-      } else if (method == 'deauth') {
-        var filter = {
-          owner_id : accountId,
-          type : 'issuer_token',
-          auth_provider : this.getName()
-        }
 
-        this._dao.removeFilter('account_auth', filter, function(err) {
-          if (!err) {
-            res.status(200).jsonp({});
-          } else {
-            self._logger.call(self, err, 'error');
-            res.status(500).jsonp({});
+      } else if (method == 'deauth') {
+        this.removeCredential(
+          accountId,
+          this.getName(),
+          function(err) {
+            if (!err) {
+              res.status(200).jsonp({});
+            } else {
+              self._logger.call(self, err, 'error');
+              res.status(500).jsonp({});
+            }
           }
-        });
+        );
         ok = true;
       }
     }
@@ -1201,13 +1212,12 @@ Pod.prototype = {
      *
      */
   oAuthUnbind : function(ownerid, next) {
-    var filter = {
-      owner_id : ownerid,
-      type : 'oauth',
-      oauth_provider : this.getName()
-    }
-
-    this._dao.removeFilter('account_auth', filter, next);
+    this.removeCredential(
+      ownerid,
+      this.getName(),
+      next
+    );
+    /*
     this._dao.updateColumn(
       'channel',
       {
@@ -1220,6 +1230,7 @@ Pod.prototype = {
         _available : false
       }
     );
+*/
   },
 
   oAuthBinder: function(req, accessToken, refreshToken, params, profile, done) {
