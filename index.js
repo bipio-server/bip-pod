@@ -916,6 +916,11 @@ Pod.prototype = {
         + ':'
         + (channel.owner_id ? channel.owner_id : 'system'),
         level);
+
+      if (message.message) {
+        message = message;
+      }
+
       this._logger.call(this, message, level);
     } else {
       this._logger.call(this,
@@ -1801,7 +1806,7 @@ Pod.prototype = {
           //
           if ('number' === type) {
             pValue = helper.stringToFloat(value);
-            if (!pValue) {
+            if (0 !== pValue && !pValue) {
               p_errStr = k + ': String cannot be converted to Number';
             } else {
               imports[k] = pValue;
@@ -1809,7 +1814,7 @@ Pod.prototype = {
 
           } else if ('integer' === type) {
             pValue = helper.stringToInt(value);
-            if (!pValue) {
+            if (0 !== pValue && !pValue) {
               p_errStr = k + ': String cannot be converted to Integer';
             } else {
               imports[k] = pValue;
