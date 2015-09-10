@@ -1601,6 +1601,7 @@ Pod.prototype = {
 
     if (!next && 'function' === typeof auth) {
       next = auth;
+
     } else {
       if (self.isOAuth()) {
         if (!auth.oauth) {
@@ -1615,6 +1616,42 @@ Pod.prototype = {
 
     if (this.actions[action] && this.actions[action].setup) {
       this.actions[action].setup(channel, accountInfo, function(err) {
+        if (err) {
+          self.log(err, channel, 'error');
+        }
+        next(err);
+      });
+    } else {
+      next(false);
+    }
+  },
+
+  /*
+   *
+   *
+   *
+   */
+  update : function(action, channel, accountInfo, auth, next) {
+    var self = this,
+      config = this.getConfig();
+
+    if (!next && 'function' === typeof auth) {
+      next = auth;
+
+    } else {
+      if (self.isOAuth()) {
+        if (!auth.oauth) {
+          auth.oauth = {};
+        }
+        _.each(config.oauth, function(value, key) {
+          auth.oauth[key] = value;
+        });
+      }
+      accountInfo._setupAuth = auth;
+    }
+
+    if (this.actions[action] && this.actions[action].update) {
+      this.actions[action].update(channel, accountInfo, function(err) {
         if (err) {
           self.log(err, channel, 'error');
         }
