@@ -1243,7 +1243,10 @@ Pod.prototype = {
     modelName = 'account_auth',
     accountInfo = req.remoteUser,
     accountId = accountInfo.getId();
-
+    
+    if(!profile)
+    	profile = {}
+    
     // upsert oAuth document
     var filter = {
       owner_id : accountId,
