@@ -1693,8 +1693,24 @@ Pod.prototype = {
   /**
     * Runs the teardown for a pod action if one exists
     */
-  teardown : function(action, channel, accountInfo, next) {
-    var self = this;
+  teardown : function(action, channel, accountInfo, auth, next) {
+    var self = this, config = this.getConfig();
+    
+    if (!next && 'function' === typeof auth) {
+      next = auth;
+    } else {
+      if (self.isOAuth()) {
+        if (!auth.oauth) {
+          auth.oauth = {};
+        }
+        _.each(config.oauth, function(value, key) {
+          auth.oauth[key] = value;
+        });
+      }
+      accountInfo._setupAuth = auth;
+    }
+    
+      
     if (this.actions[action] && this.actions[action].teardown) {
       if (this.getTrackDuplicates()) {
         // confirm teardown and drop any dup tracking from database
