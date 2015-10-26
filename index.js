@@ -1243,10 +1243,10 @@ Pod.prototype = {
     modelName = 'account_auth',
     accountInfo = req.remoteUser,
     accountId = accountInfo.getId();
-    
+
     if(!profile)
     	profile = {}
-    
+
     // upsert oAuth document
     var filter = {
       owner_id : accountId,
@@ -1294,10 +1294,14 @@ Pod.prototype = {
     });
   },
 
+  _oAuthRefresh : function(token, next) {
+    this._logger.call(this, 'oAuth Token Expired But No Refresh Implementation', 'error');
+    next();
+  },
+
   oAuthRefresh : function(authModel) {
     var refreshToken = authModel.getOAuthRefresh(),
     self = this;
-
     this._oAuthRefresh(refreshToken, function(err, refreshStruct) {
       if (!err && refreshStruct) {
         self._dao.updateProperties(
