@@ -1,6 +1,6 @@
 {
   "name": "bip-pod",
-  "version": "0.4.13",
+  "version": "0.4.14",
   "author": "Michael Pearson",
   "description": "Bipio's Pod bridge",
   "keywords": [
@@ -10,10 +10,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/bipio-server/bip-pod.git"
+    "url": "git://github.com/wotio/bip-pod.git"
   },
   "bugs": {
-    "url": "http://github.com/bipio-server/bip-pod/issues"
+    "url": "http://github.com/wotio/bip-pod/issues"
   },
   "licenses": [
     {

@@ -68,6 +68,7 @@ var helper = {
   resolveHost : function(host, next) {
     var tokens = tldtools.extract(host),
       resolvingHost;
+
     if (ipaddr.IPv4.isValid(host) || ipaddr.IPv6.isValid(host) ) {
       next(false, [ host ], host);
     } else {
@@ -955,7 +956,7 @@ Pod.prototype = {
 
   issuerTokenRPC : function(method, req, res) {
     var ok = false,
-      accountId = req.remoteUser.user.id;
+      accountId = req.remoteUser.getId();
       self = this;
 
     res.contentType(DEFS.CONTENTTYPE_JSON);
@@ -1695,7 +1696,7 @@ Pod.prototype = {
     */
   teardown : function(action, channel, accountInfo, auth, next) {
     var self = this, config = this.getConfig();
-    
+
     if (!next && 'function' === typeof auth) {
       next = auth;
     } else {
@@ -1709,8 +1710,8 @@ Pod.prototype = {
       }
       accountInfo._setupAuth = auth;
     }
-    
-      
+
+
     if (this.actions[action] && this.actions[action].teardown) {
       if (this.getTrackDuplicates()) {
         // confirm teardown and drop any dup tracking from database
