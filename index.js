@@ -1093,10 +1093,10 @@ Pod.prototype = {
       } else if (method == 'deauth') {
         this.oAuthUnbind(accountId, function(err) {
           if (!err) {
-            res.sendStatus(200);
+            res.status(200).end();
           } else {
             self._logger.call(self, err, 'error');
-            res.sendStatus(500);
+            res.status(500).end();
           }
         });
         ok = true;
