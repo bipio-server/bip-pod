@@ -1327,7 +1327,7 @@ Pod.prototype = {
 
   // -------------------------------------------------- STREAMING AND POD DATA
 
-  _httpGet: function(url, cb, headers, options) {
+  _httpGet: function(url, next, headers, options) {
     var headerStruct = {
       'User-Agent': 'request'
     };
@@ -1356,22 +1356,26 @@ Pod.prototype = {
       }
     }
 
-    request(params, function(error, res, body) {
-        if (res && res.headers && -1 !== res.headers['content-type'].indexOf('json') || -1 !== res.headers['content-type'].indexOf('javascript')) {
-          try {
-            body = JSON.parse(body);
-          } catch (e) {
-            error = e.message;
+    if (next) {
+      request(params, function(error, res, body) {
+          if (res && res.headers && -1 !== res.headers['content-type'].indexOf('json') || -1 !== res.headers['content-type'].indexOf('javascript')) {
+            try {
+              body = JSON.parse(body);
+            } catch (e) {
+              error = e.message;
+            }
+          }
+
+          if (404 === res.statusCode) {
+            next('Not Found', body, res.headers, res.statusCode);
+          } else {
+            next(error, body, res ? res.headers : null, res ? res.statusCode : null);
           }
         }
-
-        if (404 === res.statusCode) {
-          cb('Not Found', body, res.headers, res.statusCode);
-        } else {
-          cb(error, body, res ? res.headers : null, res ? res.statusCode : null);
-        }
-      }
-    );
+      );
+    } else {
+      return request(params);
+    }
   },
 
   _httpPost: function(url, postData, next, headers, options) {
@@ -1404,9 +1408,13 @@ Pod.prototype = {
       }
     }
 
-    request(params, function(error, res, body) {
-      next(error, body, res ? res.headers : null);
-    });
+    if (next) {
+      request(params, function(error, res, body) {
+        next(error, body, res ? res.headers : null);
+      });
+    } else {
+      return request(params);
+    }
   },
 
   _httpPut: function(url, putData, next, headers, options) {
@@ -1441,9 +1449,13 @@ Pod.prototype = {
       params.json = putData;
     }
 
-    request(params, function(error, res, body) {
-      next(error, body, res ? res.headers : null);
-    });
+    if (next) {
+      request(params, function(error, res, body) {
+        next(error, body, res ? res.headers : null);
+      });
+    } else {
+      return request(params);
+    }
   },
 
   // -------------------------------------------------- CDN HELPERS
