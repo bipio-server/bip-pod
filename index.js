@@ -1807,6 +1807,7 @@ Pod.prototype = {
     var self = this,
     errStr,
     parsingError = false,
+    schemePtr,
     mixedTypes = [ 'mixed', 'array', 'object' ]
 
     if (this.actions[action].invoke) {
@@ -1871,10 +1872,20 @@ Pod.prototype = {
           }
 
         var mixed;
-		    if(importSchema[k] && importSchema[k].type) {
+		    if(
+          importSchema[k] && importSchema[k].type
+          || configSchema[k] && configSchema[k].type
+          ) {
 			  	p_errStr = null;
 			  	value = imports[k];
-          type = importSchema[k].type.toLowerCase();
+
+          if (importSchema[k]) {
+            schemePtr = importSchema[k];
+          } else if (configSchema[k]) {
+            schemePtr = configSchema[k];
+          }
+
+          type = schemePtr.type.toLowerCase();
 
           //
           if ('number' === type) {
@@ -1894,7 +1905,9 @@ Pod.prototype = {
             }
 
           } else if ('boolean' === type) {
+
             var pValue = helper.stringToBoolean(value);
+
             if (pValue == null) {
               p_errStr = k + ': String cannot be converted to Boolean';
             } else {
@@ -1954,13 +1967,11 @@ Pod.prototype = {
           next.apply(self, arguments);
         });
       }
-
      } catch (e) {
        errStr = 'EXCEPT ' + e.toString();
        self.log(errStr, channel, 'error');
  	  	 next.call(self, errStr);
      }
-
     }
   },
 
