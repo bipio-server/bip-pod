@@ -1694,11 +1694,15 @@ Pod.prototype = {
 
   // expires duplicates
   _expireDups : function(channel, numDays, next) {
-    var filter = {
-        channel_id : channel.id
-      },
+    var filter,
       modelName = this.getDataSourceName('dup'),
       maxTime = (new Date()).getTime() - (numDays * 24 * 60 * 60 * 1000);
+
+    if (channel) {
+      filter = {
+        channel_id : channel.id
+      }
+    }
 
     this._dao.expire(modelName, filter, maxTime, next);
   },
