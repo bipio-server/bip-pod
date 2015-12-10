@@ -1152,6 +1152,32 @@ Pod.prototype = {
 
   },
 
+  // return oAuth profile representation
+  profileReprOAuth : function(profile) {
+    return '';
+  },
+
+  // return issuer token representation
+  profileReprIssuer : function(authModel) {
+    return '';
+  },
+
+  _profileRepr : function(authModel) {
+    var model = this._dao.modelFactory('account_auth', authModel);
+
+    if (this.isOAuth()) {
+      try {
+        return this.profileReprOAuth(
+          JSON.parse(model.getOauthProfile())
+        );
+      } catch (e) {
+        return 'Profile Unavailable';
+      }
+    } else {
+      return this.profileReprIssuer(model);
+    }
+  },
+
   /**
      * passes oAuth result set if one exists
      */
@@ -1164,7 +1190,17 @@ Pod.prototype = {
       oauth_provider : this.getName()
     };
     this._dao.find('account_auth', filter, function(err, result) {
-      next(err, podName, filter.type, result);
+      var model, authStruct;
+
+      if (result) {
+        // normalize oauth representation
+        authStruct = {
+          oauth_provider : result.oauth_provider,
+          oauth_profile : self._profileRepr(result)
+        }
+      }
+
+      next(err, podName, filter.type, authStruct);
     });
   },
 
