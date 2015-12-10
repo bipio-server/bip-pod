@@ -1196,7 +1196,7 @@ Pod.prototype = {
         // normalize oauth representation
         authStruct = {
           oauth_provider : result.oauth_provider,
-          oauth_profile : self._profileRepr(result)
+          repr : self._profileRepr(result)
         }
       }
 
