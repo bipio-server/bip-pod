@@ -943,15 +943,20 @@ Pod.prototype = {
 
   removeCredential : function(ownerId, providerName, next) {
     var filter = {
-        owner_id : ownerId,
-        auth_provider : providerName
-      }
+      owner_id : ownerId
+    };
 
-      this._dao.removeFilter('account_auth', filter, function(err) {
-        if (next) {
-          next(err);
-        }
-      });
+    if (this.isOAuth()) {
+      filter.oauth_provider = providerName;
+    } else {
+      filter.auth_provider = providerName;
+    }
+
+    this._dao.removeFilter('account_auth', filter, function(err) {
+      if (next) {
+        next(err);
+      }
+    });
   },
 
   issuerTokenRPC : function(method, req, res) {
@@ -1149,7 +1154,6 @@ Pod.prototype = {
         next(false, podName,  self.getAuthType(), result);
       }
     });
-
   },
 
   // return oAuth profile representation
@@ -1163,16 +1167,15 @@ Pod.prototype = {
   },
 
   _profileRepr : function(authModel) {
-    var model = this._dao.modelFactory('account_auth', authModel);
+    var model = this._dao.modelFactory('account_auth', authModel),
+      profile;
 
     if (this.isOAuth()) {
-      try {
-        return this.profileReprOAuth(
-          JSON.parse(model.getOauthProfile())
-        );
-      } catch (e) {
-        return 'Profile Unavailable';
-      }
+
+        profile = model.getOauthProfile();
+
+        return this.profileReprOAuth(JSON.parse(profile));
+
     } else {
       return this.profileReprIssuer(model);
     }
@@ -1259,20 +1262,6 @@ Pod.prototype = {
       this.getName(),
       next
     );
-    /*
-    this._dao.updateColumn(
-      'channel',
-      {
-        owner_id : ownerid,
-        action : {
-          $regex : this.getName() + '\.*'
-        }
-      },
-      {
-        _available : false
-      }
-    );
-*/
   },
 
   oAuthBinder: function(req, accessToken, refreshToken, params, profile, done) {
