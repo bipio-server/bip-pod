@@ -16,10 +16,10 @@
         "url": "http://github.com/bipio-server/bip-pod-boilerplate/issues"
     },
     "licenses": [
-    {
-        "type": "GNU GPLv3",
-        "url": "http://www.gnu.org/copyleft/gpl.html"
-    }
+        {
+            "type": "Apache-2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+        }
     ],
     "main": ".",
     "dependencies": {

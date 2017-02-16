@@ -10,17 +10,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/wotio/bip-pod.git"
+    "url": "https://github.com/bipio-server/bip-pod.git"
   },
   "bugs": {
-    "url": "http://github.com/wotio/bip-pod/issues"
+    "url": "https://github.com/bipio-server/bip-pod/issues"
   },
-  "licenses": [
-    {
-      "type": "GNU GPLv3",
-      "url": "http://www.gnu.org/copyleft/gpl.html"
-    }
-  ],
+  "license": "Apache-2.0",
   "main": ".",
   "dependencies": {
     "JSONPath": "^0.10.0",
