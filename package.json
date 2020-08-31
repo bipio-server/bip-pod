@@ -31,7 +31,7 @@
     "request": ">= 2.2.9",
     "tldtools": ">=0.0.19",
     "underscore": "^1.7.0",
-    "validator": "1.5.1"
+    "validator": "13.1.1"
   },
   "engines": {
     "node": ">= 0.10.0"
